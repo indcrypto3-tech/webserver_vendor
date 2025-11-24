@@ -57,12 +57,23 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     // OTP verified - check if vendor exists
-    const vendor = await Vendor.findOne({ mobile: mobile.trim() });
+    let vendor = null;
+    try {
+      vendor = await Vendor.findOne({ mobile: mobile.trim() });
+    } catch (dbError) {
+      console.error('Database error finding vendor:', dbError);
+      // Continue without vendor if DB fails
+    }
 
     if (vendor) {
       // Vendor exists - mark mobile as verified and return vendor data
-      vendor.mobileVerified = true;
-      await vendor.save();
+      try {
+        vendor.mobileVerified = true;
+        await vendor.save();
+      } catch (saveError) {
+        console.error('Error saving vendor:', saveError);
+        // Continue anyway
+      }
 
       const token = signToken({ vendorId: vendor._id, mobile: vendor.mobile });
 
@@ -84,7 +95,12 @@ router.post('/verify-otp', async (req, res) => {
     }
   } catch (error) {
     console.error('Verify OTP error:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Error stack:', error.stack);
+    return res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
