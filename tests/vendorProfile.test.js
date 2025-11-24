@@ -413,4 +413,97 @@ describe('Vendor Profile Endpoints', () => {
       expect(res.body.data).toHaveProperty('updatedAt');
     });
   });
+
+  describe('POST /api/vendors', () => {
+    it('should create vendor with availabilityMode=instant', async () => {
+      const res = await request(app)
+        .post('/api/vendors')
+        .field('mobile', '9876543210')
+        .field('vendorName', 'Test Vendor')
+        .field('gender', 'male')
+        .field('businessName', 'Test Business')
+        .field('businessAddress', 'Test Address')
+        .field('availabilityMode', 'instant');
+      
+      expect(res.statusCode).toBe(201);
+      expect(res.body.ok).toBe(true);
+      expect(res.body.data).toHaveProperty('availabilityMode', 'instant');
+      expect(res.body.data).toHaveProperty('mobile', '9876543210');
+    });
+
+    it('should create vendor with availabilityMode=schedule', async () => {
+      const res = await request(app)
+        .post('/api/vendors')
+        .field('mobile', '9876543211')
+        .field('vendorName', 'Test Vendor 2')
+        .field('gender', 'female')
+        .field('businessName', 'Test Business 2')
+        .field('businessAddress', 'Test Address 2')
+        .field('availabilityMode', 'schedule');
+      
+      expect(res.statusCode).toBe(201);
+      expect(res.body.ok).toBe(true);
+      expect(res.body.data).toHaveProperty('availabilityMode', 'schedule');
+    });
+
+    it('should create vendor with availabilityMode=both', async () => {
+      const res = await request(app)
+        .post('/api/vendors')
+        .field('mobile', '9876543212')
+        .field('vendorName', 'Test Vendor 3')
+        .field('gender', 'male')
+        .field('businessName', 'Test Business 3')
+        .field('businessAddress', 'Test Address 3')
+        .field('availabilityMode', 'both');
+      
+      expect(res.statusCode).toBe(201);
+      expect(res.body.ok).toBe(true);
+      expect(res.body.data).toHaveProperty('availabilityMode', 'both');
+    });
+
+    it('should create vendor without availabilityMode (default empty string)', async () => {
+      const res = await request(app)
+        .post('/api/vendors')
+        .field('mobile', '9876543213')
+        .field('vendorName', 'Test Vendor 4')
+        .field('gender', 'female')
+        .field('businessName', 'Test Business 4')
+        .field('businessAddress', 'Test Address 4');
+      
+      expect(res.statusCode).toBe(201);
+      expect(res.body.ok).toBe(true);
+      expect(res.body.data).toHaveProperty('availabilityMode', '');
+    });
+
+    it('should reject invalid availabilityMode with 400 error', async () => {
+      const res = await request(app)
+        .post('/api/vendors')
+        .field('mobile', '9876543214')
+        .field('vendorName', 'Test Vendor 5')
+        .field('gender', 'male')
+        .field('businessName', 'Test Business 5')
+        .field('businessAddress', 'Test Address 5')
+        .field('availabilityMode', 'invalid-mode');
+      
+      expect(res.statusCode).toBe(400);
+      expect(res.body.ok).toBe(false);
+      expect(res.body.error).toBe('Validation failed');
+      expect(res.body.details).toContain('availabilityMode must be one of: instant, schedule, both, or empty string');
+    });
+
+    it('should create vendor with empty string availabilityMode', async () => {
+      const res = await request(app)
+        .post('/api/vendors')
+        .field('mobile', '9876543215')
+        .field('vendorName', 'Test Vendor 6')
+        .field('gender', 'female')
+        .field('businessName', 'Test Business 6')
+        .field('businessAddress', 'Test Address 6')
+        .field('availabilityMode', '');
+      
+      expect(res.statusCode).toBe(201);
+      expect(res.body.ok).toBe(true);
+      expect(res.body.data).toHaveProperty('availabilityMode', '');
+    });
+  });
 });

@@ -274,13 +274,22 @@ async function updateMe(req, res) {
  */
 async function createVendor(req, res) {
   try {
-    const { vendorName, mobile, gender, businessName, businessAddress, businessType, selectedServices } = req.body;
+    const { vendorName, mobile, gender, businessName, businessAddress, businessType, availabilityMode, selectedServices } = req.body;
 
     // Validate required fields
     if (!vendorName || !mobile) {
       return res.status(400).json({ 
         ok: false,
         error: 'vendorName and mobile are required' 
+      });
+    }
+
+    // Validate availabilityMode if provided
+    if (availabilityMode && !['instant', 'schedule', 'both', ''].includes(availabilityMode)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Validation failed',
+        details: ['availabilityMode must be one of: instant, schedule, both, or empty string']
       });
     }
 
@@ -328,6 +337,7 @@ async function createVendor(req, res) {
       businessName: sanitizeString(businessName || ''),
       businessAddress: sanitizeString(businessAddress || ''),
       businessType: sanitizeString(businessType || ''),
+      availabilityMode: availabilityMode || '',
       selectedServices: parsedServices,
       identityImages,
     });
