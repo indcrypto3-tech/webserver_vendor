@@ -10,7 +10,6 @@ const vendorSchema = new mongoose.Schema(
     mobile: {
       type: String,
       required: [true, 'Mobile number is required'],
-      unique: true,
       trim: true,
     },
     mobileVerified: {

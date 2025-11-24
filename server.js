@@ -12,11 +12,17 @@ const vendorRoutes = require('./routes/vendors');
 // Initialize Express app
 const app = express();
 
-// Create uploads directory if it doesn't exist
+// Create uploads directory if it doesn't exist (skip on serverless environments)
 const uploadsPath = path.join(__dirname, config.uploadDir);
-if (!fs.existsSync(uploadsPath)) {
-  fs.mkdirSync(uploadsPath, { recursive: true });
-  console.log(`Created uploads directory: ${uploadsPath}`);
+try {
+  if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+    console.log(`Created uploads directory: ${uploadsPath}`);
+  }
+} catch (error) {
+  // On serverless platforms (like Vercel), filesystem is read-only
+  console.warn('Cannot create uploads directory (serverless environment):', error.message);
+  console.warn('File uploads will not persist. Consider using cloud storage (S3/Cloudinary).');
 }
 
 // Middleware
