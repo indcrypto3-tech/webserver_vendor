@@ -12,8 +12,15 @@ const otpStore = new Map();
 
 /**
  * Generate a random 4-digit OTP code
+ * In development, uses fixed OTP for easier testing
  */
 function generateOTP() {
+  // Use fixed OTP in development for easier testing
+  if (process.env.NODE_ENV !== 'production') {
+    return '1234';
+  }
+  
+  // Generate random OTP in production
   const length = config.otpLength;
   const digits = '0123456789';
   let otp = '';
