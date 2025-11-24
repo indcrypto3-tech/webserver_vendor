@@ -6,6 +6,8 @@ patches/
 
 # Environment variables
 .env
+.env.local
+.env.*.local
 
 # Logs
 logs
@@ -13,6 +15,8 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
 
 # Uploaded files (uncomment if you don't want to track uploads in git)
 uploads/*
@@ -20,23 +24,59 @@ uploads/*
 
 # OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
-
-# IDE files
-.vscode/
-.idea/
 *.swp
 *.swo
 *~
 
+# IDE files
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+
 # Build files
 dist/
 build/
+out/
 
 # Testing
 coverage/
 .nyc_output/
+*.lcov
+.jest-cache/
+junit.xml
 
 # Temporary files
 tmp/
 temp/
+*.tmp
+
+# Package manager lock files (optional - uncomment if you want to ignore)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# MongoDB
+*.mdb
+*.ldb
+
+# Debug
+.vscode-test/
+.mongorc.js
+
+# Vercel
+.vercel
+
+# Documentation (optional - uncomment to ignore generated/temporary docs)
+ *.md
+ !README.md
