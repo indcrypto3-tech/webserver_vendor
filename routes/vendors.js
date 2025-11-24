@@ -6,6 +6,20 @@ const { uploadIdentityImages, handleUploadErrors } = require('../middleware/uplo
 const { signToken } = require('../utils/jwt');
 
 /**
+ * Helper function to normalize gender input to lowercase
+ * Handles case-insensitive input (Male, MALE, male -> male)
+ */
+function normalizeGender(gender) {
+  if (!gender || typeof gender !== 'string') return '';
+  const normalized = gender.trim().toLowerCase();
+  // Only return if it's a valid enum value
+  if (['male', 'female', 'other'].includes(normalized)) {
+    return normalized;
+  }
+  return ''; // Return empty string for invalid values
+}
+
+/**
  * Helper function to parse selectedServices
  * Accepts JSON array string or comma-separated values
  */
@@ -76,12 +90,15 @@ router.post('/', uploadIdentityImages, handleUploadErrors, async (req, res) => {
     // Get file paths from uploaded files
     const identityImages = getFilePaths(req.files || {});
 
+    // Normalize gender to lowercase
+    const normalizedGender = normalizeGender(gender);
+
     // Create new vendor
     const vendor = new Vendor({
       vendorName: vendorName.trim(),
       mobile: mobile.trim(),
       mobileVerified: true, // Assume verified if they reached this step
-      gender: gender || '',
+      gender: normalizedGender,
       businessName: businessName || '',
       businessAddress: businessAddress || '',
       businessType: businessType || '',
@@ -166,6 +183,8 @@ router.patch('/me', authenticate, uploadIdentityImages, handleUploadErrors, asyn
       if (req.body[field] !== undefined) {
         if (field === 'selectedServices') {
           vendor[field] = parseSelectedServices(req.body[field]);
+        } else if (field === 'gender') {
+          vendor[field] = normalizeGender(req.body[field]);
         } else {
           vendor[field] = req.body[field];
         }
