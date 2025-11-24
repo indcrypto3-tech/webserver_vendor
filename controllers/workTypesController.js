@@ -110,91 +110,6 @@ async function getWorkTypes(req, res) {
 }
 
 /**
- * POST /api/vendors/me/work-types
- * Update vendor's selected work types
- */
-async function updateVendorWorkTypes(req, res) {
-  try {
-    // Check if user is in pre-registration state
-    if (req.user.isPreRegistration) {
-      return res.status(404).json({
-        ok: false,
-        error: 'Vendor profile not created yet. Use POST /api/vendors to create.',
-      });
-    }
-
-    const { workTypes } = req.body;
-
-    // Validate workTypes field
-    if (workTypes === undefined) {
-      return res.status(400).json({
-        ok: false,
-        error: 'workTypes field is required',
-      });
-    }
-
-    if (!Array.isArray(workTypes)) {
-      return res.status(400).json({
-        ok: false,
-        error: 'workTypes must be an array',
-      });
-    }
-
-    // Get valid work type slugs from database or defaults
-    let validWorkTypes = [];
-    try {
-      const dbWorkTypes = await WorkType.find({ isActive: true });
-      if (dbWorkTypes && dbWorkTypes.length > 0) {
-        validWorkTypes = dbWorkTypes.map(wt => wt.slug);
-      } else {
-        validWorkTypes = DEFAULT_WORK_TYPES.map(wt => wt.slug);
-      }
-    } catch (dbError) {
-      // On database error, use default slugs
-      validWorkTypes = DEFAULT_WORK_TYPES.map(wt => wt.slug);
-    }
-
-    // Validate each work type slug
-    const invalidSlugs = workTypes.filter(slug => !validWorkTypes.includes(slug));
-    
-    if (invalidSlugs.length > 0) {
-      return res.status(400).json({
-        ok: false,
-        error: 'Invalid work type slugs',
-        details: [`Invalid slugs: ${invalidSlugs.join(', ')}. Valid options: ${validWorkTypes.join(', ')}`],
-      });
-    }
-
-    // Update vendor's work types
-    const vendor = req.user;
-    vendor.workTypes = workTypes;
-
-    await vendor.save();
-
-    return res.status(200).json({
-      ok: true,
-      data: vendor.toPublicJSON(),
-    });
-  } catch (error) {
-    console.error('Update vendor work types error:', error);
-
-    // Handle validation errors
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        ok: false,
-        error: 'Validation error',
-        details: Object.values(error.errors).map(e => e.message),
-      });
-    }
-
-    return res.status(500).json({
-      ok: false,
-      error: 'Server error occurred while updating work types',
-    });
-  }
-}
-
-/**
  * Initialize database with default work types
  * Call this during server startup if needed
  */
@@ -214,7 +129,6 @@ async function seedWorkTypes() {
 
 module.exports = {
   getWorkTypes,
-  updateVendorWorkTypes,
   seedWorkTypes,
   DEFAULT_WORK_TYPES,
 };

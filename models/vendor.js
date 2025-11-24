@@ -31,18 +31,14 @@ const vendorSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    businessType: {
-      type: String,
-      trim: true,
-      default: '',
-    },
     selectedServices: {
       type: [String],
       default: [],
     },
-    workTypes: {
-      type: [String],
-      default: [],
+    availabilityMode: {
+      type: String,
+      enum: ['instant', 'schedule', 'both', ''],
+      default: '',
     },
     identityImages: {
       profile: {

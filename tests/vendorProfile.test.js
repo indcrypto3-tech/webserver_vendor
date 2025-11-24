@@ -88,7 +88,6 @@ describe('Vendor Profile Endpoints', () => {
         gender: 'female',
         businessName: 'Complete Business',
         businessAddress: '456 Complete Ave',
-        businessType: 'Consulting',
         selectedServices: ['Consulting', 'Training'],
         identityImages: {
           profile: '/uploads/profile2.jpg',
@@ -110,7 +109,7 @@ describe('Vendor Profile Endpoints', () => {
       expect(res.body.data).toHaveProperty('gender');
       expect(res.body.data).toHaveProperty('businessName');
       expect(res.body.data).toHaveProperty('businessAddress');
-      expect(res.body.data).toHaveProperty('businessType');
+      expect(res.body.data).toHaveProperty('availabilityMode');
       expect(res.body.data).toHaveProperty('selectedServices');
       expect(res.body.data).toHaveProperty('identityImages');
       expect(res.body.data).toHaveProperty('createdAt');
@@ -179,7 +178,7 @@ describe('Vendor Profile Endpoints', () => {
         vendorName: 'New Name',
         businessName: 'New Business',
         businessAddress: 'New Address',
-        businessType: 'New Type',
+        availabilityMode: 'both',
         gender: 'female'
       };
 
@@ -193,7 +192,7 @@ describe('Vendor Profile Endpoints', () => {
       expect(res.body.data.vendorName).toBe('New Name');
       expect(res.body.data.businessName).toBe('New Business');
       expect(res.body.data.businessAddress).toBe('New Address');
-      expect(res.body.data.businessType).toBe('New Type');
+      expect(res.body.data.availabilityMode).toBe('both');
       expect(res.body.data.gender).toBe('female');
     });
 
@@ -358,6 +357,44 @@ describe('Vendor Profile Endpoints', () => {
       expect(res.statusCode).toBe(200);
       const newUpdatedAt = new Date(res.body.data.updatedAt);
       expect(newUpdatedAt.getTime()).toBeGreaterThan(originalUpdatedAt.getTime());
+    });
+
+    it('should validate availabilityMode enum values', async () => {
+      // Test invalid value
+      let res = await request(app)
+        .patch('/api/vendors/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ availabilityMode: 'invalid-mode' });
+      
+      expect(res.statusCode).toBe(400);
+      expect(res.body.ok).toBe(false);
+      expect(res.body.error).toContain('Validation failed');
+      expect(res.body.details).toContain('availabilityMode must be one of: instant, schedule, both, or empty string');
+
+      // Test valid values
+      res = await request(app)
+        .patch('/api/vendors/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ availabilityMode: 'instant' });
+      
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data.availabilityMode).toBe('instant');
+
+      res = await request(app)
+        .patch('/api/vendors/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ availabilityMode: 'schedule' });
+      
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data.availabilityMode).toBe('schedule');
+
+      res = await request(app)
+        .patch('/api/vendors/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ availabilityMode: 'both' });
+      
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data.availabilityMode).toBe('both');
     });
 
     it('should return updated vendor with all fields', async () => {

@@ -108,9 +108,12 @@ function validateVendorUpdate(data) {
     errors.push('businessAddress must be a string');
   }
 
-  // Validate businessType if provided
-  if (data.businessType !== undefined && typeof data.businessType !== 'string') {
-    errors.push('businessType must be a string');
+  // Validate availabilityMode if provided
+  if (data.availabilityMode !== undefined) {
+    const validModes = ['instant', 'schedule', 'both', ''];
+    if (!validModes.includes(data.availabilityMode)) {
+      errors.push('availabilityMode must be one of: instant, schedule, both, or empty string');
+    }
   }
 
   // Validate selectedServices if provided
@@ -190,7 +193,7 @@ async function updateMe(req, res) {
       'gender',
       'businessName',
       'businessAddress',
-      'businessType',
+      'availabilityMode',
       'selectedServices',
     ];
 
@@ -205,6 +208,9 @@ async function updateMe(req, res) {
           vendor[field] = parseSelectedServices(req.body[field]);
         } else if (field === 'gender') {
           vendor[field] = normalizeGender(req.body[field]);
+        } else if (field === 'availabilityMode') {
+          // No sanitization needed for enum field
+          vendor[field] = req.body[field];
         } else {
           // Sanitize string inputs
           vendor[field] = sanitizeString(req.body[field]);

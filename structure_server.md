@@ -62,12 +62,7 @@ backend_server/
 | POST | `/api/vendors` | No | Create vendor profile |
 | GET | `/api/vendors/me` | Yes | Get current vendor |
 | PATCH | `/api/vendors/me` | Yes | Update current vendor |
-| GET | `/api/work-types` | No | Get available work types |
-| POST | `/api/vendors/me/work-types` | Yes | Update vendor work types |
-| POST | `/api/auth/verify-otp` | No | Verify OTP & get JWT |
-| POST | `/api/vendors` | No | Create vendor profile |
-| GET | `/api/vendors/me` | Yes | Get current vendor |
-| PATCH | `/api/vendors/me` | Yes | Update current vendor |
+| GET | `/api/work-types` | No | Get available service categories |
 
 ---
 
@@ -398,7 +393,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | `gender` | string | Optional: "male", "female", "other", "" (case-insensitive) | "male" or "FEMALE" |
 | `businessName` | string | Optional, any length | "John's Services" |
 | `businessAddress` | string | Optional, any length | "123 Main St, City" |
-| `businessType` | string | Optional, any length | "Plumbing" |
+| `availabilityMode` | string | Optional: "instant", "schedule", "both", "" | "instant" or "both" |
 | `selectedServices` | array/string | Optional, accepts array, JSON string, or CSV | `["Service1"]` or `"Service1, Service2"` |
 | `profile` | file | Optional, image only, max 25MB | profile.jpg |
 | `id` | file | Optional, image only, max 25MB | id_card.png |
@@ -416,6 +411,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 {
   "vendorName": "Updated Name",
   "businessName": "New Business Name",
+  "availabilityMode": "both",
   "selectedServices": ["Service A", "Service B"]
 }
 ```
@@ -441,7 +437,7 @@ curl -X PATCH https://webserver-vendor.vercel.app/api/vendors/me \
     "gender": "male",
     "businessName": "New Business Name",
     "businessAddress": "New Address 456",
-    "businessType": "Plumbing",
+    "availabilityMode": "both",
     "selectedServices": ["Service A", "Service B"],
     "identityImages": {
       "profile": "/uploads/profile-updated.jpg",
@@ -564,9 +560,9 @@ curl -X PATCH https://webserver-vendor.vercel.app/api/vendors/me \
 
 ## Work Type Endpoints
 
-### 6. Get Available Work Types
+### 6. Get Available Service Categories
 
-**Purpose:** Retrieve the master list of available work types for vendors to choose from.
+**Purpose:** Retrieve the master list of available service categories for vendors to choose from.
 
 **Endpoint:** `GET /api/work-types`
 
@@ -599,7 +595,7 @@ curl -X PATCH https://webserver-vendor.vercel.app/api/vendors/me \
 }
 ```
 
-**Default Work Types (when database is empty):**
+**Default Service Categories (when database is empty):**
 - `plumbing` - Plumbing services
 - `electrical` - Electrical services
 - `carpentry` - Carpentry and woodwork
@@ -615,12 +611,12 @@ curl -X PATCH https://webserver-vendor.vercel.app/api/vendors/me \
 ```json
 {
   "ok": false,
-  "error": "Server error occurred while fetching work types"
+  "error": "Server error occurred while fetching service categories"
 }
 ```
 
 **Usage:**
-- Display available work types in registration/profile screens
+- Display available service categories in registration/profile screens
 - Allow vendors to select their expertise areas
 - Populate dropdown/checkbox lists in mobile app
 - No authentication required - public endpoint
@@ -631,147 +627,14 @@ curl -X PATCH https://webserver-vendor.vercel.app/api/vendors/me \
 - Model: `models/workType.js`
 - Data source: MongoDB `work_types` collection (falls back to hardcoded defaults)
 - Auto-seeded on server startup if database is empty
-- Only returns active work types (`isActive: true`)
+- Only returns active service categories (`isActive: true`)
 - Sorted alphabetically by title
-
----
-
-### 7. Update Vendor Work Types
-
-**Purpose:** Update the authenticated vendor's selected work types (areas of expertise).
-
-**Endpoint:** `POST /api/vendors/me/work-types`
-
-**Authentication:** Required (JWT Bearer token)
-
-**Content-Type:** `application/json`
-
-**Request Headers:**
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**Request Body:**
-```json
-{
-  "workTypes": ["plumbing", "electrical", "hvac"]
-}
-```
-
-**Field Details:**
-
-| Field | Type | Required | Validation |
-|-------|------|----------|------------|
-| `workTypes` | array | Yes | Must be array of valid slugs from GET /api/work-types |
-
-**Success Response (200):**
-```json
-{
-  "ok": true,
-  "data": {
-    "_id": "673c8a1f2e4b5c001a2f3d4e",
-    "vendorName": "John Doe",
-    "mobile": "9876543210",
-    "mobileVerified": true,
-    "gender": "male",
-    "businessName": "John's Services",
-    "businessAddress": "123 Main St",
-    "businessType": "Plumbing",
-    "selectedServices": ["Service1", "Service2"],
-    "workTypes": ["plumbing", "electrical", "hvac"],
-    "identityImages": {
-      "profile": "/uploads/profile-123.jpg",
-      "id": "/uploads/id-456.jpg",
-      "cert": "/uploads/cert-789.jpg"
-    },
-    "createdAt": "2025-11-24T10:00:00.000Z",
-    "updatedAt": "2025-11-24T12:45:00.000Z"
-  }
-}
-```
-
-**Error Responses:**
-
-`400 Bad Request` - Missing field:
-```json
-{
-  "ok": false,
-  "error": "workTypes field is required"
-}
-```
-
-`400 Bad Request` - Invalid type:
-```json
-{
-  "ok": false,
-  "error": "workTypes must be an array"
-}
-```
-
-`400 Bad Request` - Invalid slugs:
-```json
-{
-  "ok": false,
-  "error": "Invalid work type slugs",
-  "details": [
-    "Invalid slugs: invalid-slug, another-invalid. Valid options: plumbing, electrical, carpentry, painting, cleaning, gardening, hvac, appliance-repair, pest-control, handyman"
-  ]
-}
-```
-
-`401 Unauthorized`:
-```json
-{
-  "message": "Authorization token required"
-}
-```
-
-`404 Not Found` - Profile not created:
-```json
-{
-  "ok": false,
-  "error": "Vendor profile not created yet. Use POST /api/vendors to create."
-}
-```
-
-**Validation Rules:**
-
-1. **workTypes field:**
-   - Must be present in request body
-   - Must be an array
-   - Can be empty array `[]` (clears all work types)
-   - Each item must be a string
-
-2. **Slug validation:**
-   - All slugs must exist in the work types master list
-   - Validated against database work types if available
-   - Falls back to default work types if database is empty
-   - Invalid slugs are rejected with detailed error message
-
-3. **Updates:**
-   - Replaces entire workTypes array (not additive)
-   - Can be updated multiple times
-   - Vendor can select multiple work types
-
-**Usage:**
-- Set vendor's areas of expertise during onboarding
-- Update work types in profile settings
-- Clear work types by sending empty array
-- Used for vendor search and filtering
-
-**Implementation Details:**
-- Controller: `controllers/workTypesController.js`
-- Routes: `routes/workTypes.js`
-- Uses: `middleware/auth.js` for authentication
-- Validates slugs against master work types list
-- Updates `workTypes` field in Vendor model
-- Returns full updated vendor object
 
 ---
 
 ## Utility Endpoints
 
-### 8. API Information
+### 7. API Information
 
 **Purpose:** Display API information and available endpoints.
 
