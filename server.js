@@ -8,6 +8,8 @@ const config = require('./config');
 // Import routes
 const authRoutes = require('./routes/auth');
 const vendorRoutes = require('./routes/vendors');
+const workTypesRoutes = require('./routes/workTypes');
+const { seedWorkTypes } = require('./controllers/workTypesController');
 
 // Initialize Express app
 const app = express();
@@ -37,6 +39,8 @@ app.use('/uploads', express.static(uploadsPath));
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/vendors', vendorRoutes);
+app.use('/api/work-types', workTypesRoutes);
+app.use('/api', workTypesRoutes); // For /api/vendors/me/work-types
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -61,6 +65,10 @@ app.get('/', (req, res) => {
         create: 'POST /api/vendors',
         getMe: 'GET /api/vendors/me',
         updateMe: 'PATCH /api/vendors/me',
+        updateWorkTypes: 'POST /api/vendors/me/work-types',
+      },
+      workTypes: {
+        getAll: 'GET /api/work-types',
       },
       health: 'GET /health',
     },
@@ -87,6 +95,9 @@ mongoose
   .then(() => {
     console.log('Connected to MongoDB');
     console.log(`Database: ${config.mongoUri}`);
+    
+    // Seed work types if database is empty
+    seedWorkTypes();
   })
   .catch((error) => {
     console.error('MongoDB connection error:', error);

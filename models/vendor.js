@@ -40,6 +40,10 @@ const vendorSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    workTypes: {
+      type: [String],
+      default: [],
+    },
     identityImages: {
       profile: {
         type: String,
