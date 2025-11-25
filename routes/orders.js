@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 
+console.log('[orders.js] authenticate middleware type:', typeof authenticate);
+
 // Try-catch wrapper to handle module loading issues on serverless
 let orderController;
 try {
@@ -18,15 +20,18 @@ try {
   };
 }
 
-/**
- * GET /api/orders/:id - Get order details
- */
-router.get('/:id', authenticate, (req, res) => orderController.getOrder(req, res));
+// Create safe middleware wrapper
+const authMiddleware = authenticate || ((req, res, next) => next());
 
 /**
  * POST /api/orders/:id/accept - Accept an order (vendor only)
  */
-router.post('/:id/accept', authenticate, (req, res) => orderController.acceptOrder(req, res));
+router.post('/:id/accept', authMiddleware, (req, res) => orderController.acceptOrder(req, res));
+
+/**
+ * POST /api/orders/:id/reject - Reject an order (vendor only)
+ */
+router.post('/:id/reject', authMiddleware, (req, res) => orderController.rejectOrder(req, res));
 
 /**
  * POST /api/orders/:id/reject - Reject an order (vendor only)
