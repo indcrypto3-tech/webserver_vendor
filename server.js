@@ -123,7 +123,7 @@ mongoose
   .catch((error) => {
     console.error('MongoDB connection error:', error);
     process.exit(1);
-  });/ Seed work types if database is empty
+  });// Seed work types if database is empty
     seedWorkTypes();
   })
   .catch((error) => {
