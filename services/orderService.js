@@ -138,6 +138,8 @@ async function assignVendorToOrder(order) {
     if (!vendor) {
       console.log('Vendor not found:', vendorId);
       return null;
+    }
+
     // Update order with vendor assignment
     order.vendorId = vendorId;
     order.status = 'assigned';
@@ -231,8 +233,6 @@ async function createOrder(data) {
     // Reload order to get updated data
     await order.populate('vendorId');
   }
-
-  return order;nalytics service
 
   return order;
 }

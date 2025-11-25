@@ -1,5 +1,15 @@
 const rateLimit = require('express-rate-limit');
 
+// Helper function to safely get request IP (handles IPv6)
+function getClientIdentifier(req) {
+  // Use authenticated vendor ID if available
+  if (req.user?._id) {
+    return `vendor:${req.user._id.toString()}`;
+  }
+  // Otherwise use IP address (handles both IPv4 and IPv6)
+  return req.ip || req.connection?.remoteAddress || 'unknown';
+}
+
 // General rate limiter for presence updates
 // Allows 1 request per second, max 60 requests per minute per vendor
 const presenceRateLimiter = rateLimit({
@@ -13,10 +23,7 @@ const presenceRateLimiter = rateLimit({
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false, // Disable `X-RateLimit-*` headers
   // Use vendorId from auth middleware as key if available
-  keyGenerator: (req, res) => {
-    // If vendor is authenticated, use vendorId, otherwise fall back to IP
-    return req.user?._id?.toString() || req.ip;
-  },
+  keyGenerator: (req) => getClientIdentifier(req),
   handler: (req, res) => {
     res.status(429).json({
       ok: false,
@@ -41,9 +48,7 @@ const strictPresenceRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req, res) => {
-    return req.user?._id?.toString() || req.ip;
-  },
+  keyGenerator: (req) => getClientIdentifier(req),
   handler: (req, res) => {
     res.status(429).json({
       ok: false,
@@ -68,10 +73,7 @@ const devOrderRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req, res) => {
-    // Use IP address as key for dev endpoints
-    return req.ip || req.connection.remoteAddress;
-  },
+  keyGenerator: (req) => req.ip || req.connection?.remoteAddress || 'unknown',
   handler: (req, res) => {
     const limit = parseInt(process.env.DEV_ORDER_RATE_LIMIT) || 10;
     res.status(429).json({
