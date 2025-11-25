@@ -47,6 +47,17 @@ function initializeFirebase() {
     });
 
     console.log('✅ Firebase Admin SDK initialized');
+    console.log('📋 Firebase Config:', {
+      projectId: firebaseApp.options.projectId,
+      clientEmail: serviceAccount.client_email,
+      hasPrivateKey: !!serviceAccount.private_key,
+      proxy: {
+        HTTP_PROXY: process.env.HTTP_PROXY || 'none',
+        HTTPS_PROXY: process.env.HTTPS_PROXY || 'none',
+        http_proxy: process.env.http_proxy || 'none',
+        https_proxy: process.env.https_proxy || 'none',
+      }
+    });
     return firebaseApp;
   } catch (error) {
     console.error('❌ Firebase initialization error:', error.message);

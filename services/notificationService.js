@@ -23,8 +23,15 @@ async function sendPushToVendor(vendorId, notification, data = {}) {
       return { success: false, error: 'No FCM tokens registered' };
     }
 
-    // Get all valid tokens
-    const tokens = vendor.fcmTokens.map(t => t.token);
+    // Get all valid tokens (limit to 500 per FCM requirement)
+    const tokens = vendor.fcmTokens.map(t => t.token).slice(0, 500);
+
+    console.log('📤 Sending FCM notification:', {
+      vendorId,
+      tokenCount: tokens.length,
+      notification: notification,
+      data: data
+    });
 
     // Prepare message
     const message = {
@@ -56,10 +63,12 @@ async function sendPushToVendor(vendorId, notification, data = {}) {
       tokens, // Send to all registered devices
     };
 
-    // Send notification
+    console.log('📨 FCM Message payload:', JSON.stringify(message, null, 2));
+
+    // Send notification using Admin SDK (handles /batch endpoint internally)
     const response = await messaging.sendMulticast(message);
 
-    console.log(`✅ Sent push notification to vendor ${vendorId}: ${response.successCount}/${tokens.length} delivered`);
+    console.log(`✅ Push notification sent successfully: ${response.successCount}/${tokens.length} delivered`);
 
     // Handle failed tokens (expired/invalid)
     if (response.failureCount > 0) {
@@ -67,7 +76,7 @@ async function sendPushToVendor(vendorId, notification, data = {}) {
       response.responses.forEach((resp, idx) => {
         if (!resp.success) {
           failedTokens.push(tokens[idx]);
-          console.log(`❌ Failed to send to token: ${resp.error?.message}`);
+          console.log(`❌ Failed to send to token ${idx}: ${resp.error?.code} - ${resp.error?.message}`);
         }
       });
 
@@ -82,6 +91,7 @@ async function sendPushToVendor(vendorId, notification, data = {}) {
     };
   } catch (error) {
     console.error('❌ Error sending push notification:', error);
+    console.error('Error stack:', error.stack);
     return { success: false, error: error.message };
   }
 }
