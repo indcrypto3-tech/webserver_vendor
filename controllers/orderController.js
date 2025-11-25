@@ -1,6 +1,22 @@
 const { updateOrderStatus } = require('../services/orderService');
-const { notifyVendorOrderStatusUpdate, notifyCustomerOrderStatusUpdate } = require('../services/notificationService');
-const { emitOrderStatusUpdate } = require('../services/socketService');
+
+// Lazy load these to avoid circular dependency issues on serverless
+let notificationService;
+let socketService;
+
+function getNotificationService() {
+  if (!notificationService) {
+    notificationService = require('../services/notificationService');
+  }
+  return notificationService;
+}
+
+function getSocketService() {
+  if (!socketService) {
+    socketService = require('../services/socketService');
+  }
+  return socketService;
+}
 
 /**
  * POST /api/orders/:id/accept
@@ -40,12 +56,14 @@ async function acceptOrder(req, res) {
     const updatedOrder = await updateOrderStatus(id, 'accepted');
 
     // Send notifications
+    const { notifyVendorOrderStatusUpdate, notifyCustomerOrderStatusUpdate } = getNotificationService();
     await notifyVendorOrderStatusUpdate(vendor._id, updatedOrder, 'accepted');
     if (updatedOrder.customerId) {
       await notifyCustomerOrderStatusUpdate(updatedOrder.customerId, updatedOrder, 'accepted');
     }
 
     // Emit socket event
+    const { emitOrderStatusUpdate } = getSocketService();
     emitOrderStatusUpdate(vendor._id, updatedOrder, 'accepted');
 
     return res.status(200).json({
@@ -108,12 +126,14 @@ async function rejectOrder(req, res) {
     await order.save();
 
     // Send notifications
+    const { notifyVendorOrderStatusUpdate, notifyCustomerOrderStatusUpdate } = getNotificationService();
     await notifyVendorOrderStatusUpdate(vendor._id, order, 'cancelled');
     if (order.customerId) {
       await notifyCustomerOrderStatusUpdate(order.customerId, order, 'cancelled');
     }
 
     // Emit socket event
+    const { emitOrderStatusUpdate } = getSocketService();
     emitOrderStatusUpdate(vendor._id, order, 'cancelled');
 
     return res.status(200).json({
