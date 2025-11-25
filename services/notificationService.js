@@ -65,8 +65,8 @@ async function sendPushToVendor(vendorId, notification, data = {}) {
 
     console.log('📨 FCM Message payload:', JSON.stringify(message, null, 2));
 
-    // Send notification using Admin SDK (handles /batch endpoint internally)
-    const response = await messaging.sendMulticast(message);
+    // Send notification using Admin SDK v13 - sendEachForMulticast
+    const response = await messaging.sendEachForMulticast(message);
 
     console.log(`✅ Push notification sent successfully: ${response.successCount}/${tokens.length} delivered`);
 
