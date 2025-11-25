@@ -8,6 +8,7 @@ patches/
 .env
 .env.local
 .env.*.local
+.env.example
 
 # Firebase credentials (CRITICAL - never commit these!)
 config/firebase-service-account.json
