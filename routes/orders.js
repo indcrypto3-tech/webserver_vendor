@@ -21,30 +21,44 @@ try {
 // Validate that functions exist
 if (typeof orderController.getOrder !== 'function') {
   console.error('[orders.js] ERROR: getOrder is not a function, type:', typeof orderController.getOrder);
+  console.error('[orders.js] getOrder value:', orderController.getOrder);
 }
 if (typeof orderController.acceptOrder !== 'function') {
   console.error('[orders.js] ERROR: acceptOrder is not a function, type:', typeof orderController.acceptOrder);
+  console.error('[orders.js] acceptOrder value:', orderController.acceptOrder);
 }
 if (typeof orderController.rejectOrder !== 'function') {
   console.error('[orders.js] ERROR: rejectOrder is not a function, type:', typeof orderController.rejectOrder);
+  console.error('[orders.js] rejectOrder value:', orderController.rejectOrder);
 }
+
+// Extract functions to local variables to avoid reference issues
+const getOrderFunc = orderController.getOrder;
+const acceptOrderFunc = orderController.acceptOrder;
+const rejectOrderFunc = orderController.rejectOrder;
+
+console.log('[orders.js] Extracted functions:', {
+  getOrderFunc: typeof getOrderFunc,
+  acceptOrderFunc: typeof acceptOrderFunc,
+  rejectOrderFunc: typeof rejectOrderFunc,
+});
 
 /**
  * GET /api/orders/:id
  * Get order details
  */
-router.get('/:id', authenticate, orderController.getOrder);
+router.get('/:id', authenticate, getOrderFunc);
 
 /**
  * POST /api/orders/:id/accept
  * Accept an order (vendor only)
  */
-router.post('/:id/accept', authenticate, orderController.acceptOrder);
+router.post('/:id/accept', authenticate, acceptOrderFunc);
 
 /**
  * POST /api/orders/:id/reject
  * Reject an order (vendor only)
  */
-router.post('/:id/reject', authenticate, orderController.rejectOrder);
+router.post('/:id/reject', authenticate, rejectOrderFunc);
 
 module.exports = router;
