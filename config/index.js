@@ -16,4 +16,7 @@ module.exports = {
   // File upload constraints
   maxFileSize: 25 * 1024 * 1024, // 25MB
   allowedImageTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+  
+  // Vendor presence TTL (Time To Live)
+  presenceTTLSeconds: parseInt(process.env.PRESENCE_TTL_SECONDS) || 90, // Default 90 seconds
 };

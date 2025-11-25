@@ -9,6 +9,7 @@ const config = require('./config');
 const authRoutes = require('./routes/auth');
 const vendorRoutes = require('./routes/vendors');
 const workTypesRoutes = require('./routes/workTypes');
+const presenceRoutes = require('./routes/presence');
 const { seedWorkTypes } = require('./controllers/workTypesController');
 
 // Initialize Express app
@@ -39,6 +40,7 @@ app.use('/uploads', express.static(uploadsPath));
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/vendors', vendorRoutes);
+app.use('/api/vendors', presenceRoutes); // Presence routes under /api/vendors
 app.use('/api/work-types', workTypesRoutes);
 app.use('/api', workTypesRoutes); // For /api/vendors/me/work-types
 
