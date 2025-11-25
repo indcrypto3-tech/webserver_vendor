@@ -1,17 +1,8 @@
 const rateLimit = require('express-rate-limit');
 
-// Helper function to safely get request IP (handles IPv6)
-function getClientIdentifier(req) {
-  // Use authenticated vendor ID if available
-  if (req.user?._id) {
-    return `vendor:${req.user._id.toString()}`;
-  }
-  // Otherwise use IP address (handles both IPv4 and IPv6)
-  return req.ip || req.socket?.remoteAddress || 'unknown';
-}
-
 // General rate limiter for presence updates
 // Allows 1 request per second, max 60 requests per minute per vendor
+// Uses default IP-based limiting (IPv6 safe)
 const presenceRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute window
   max: 60, // Max 60 requests per window per IP/vendor
@@ -22,8 +13,6 @@ const presenceRateLimiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false, // Disable `X-RateLimit-*` headers
-  // Use vendorId from auth middleware as key if available
-  keyGenerator: getClientIdentifier,
   handler: (req, res) => {
     res.status(429).json({
       ok: false,
@@ -38,6 +27,7 @@ const presenceRateLimiter = rateLimit({
 });
 
 // Stricter rate limiter: 1 request per second
+// Uses default IP-based limiting (IPv6 safe)
 const strictPresenceRateLimiter = rateLimit({
   windowMs: 1000, // 1 second window
   max: 1, // Max 1 request per second
@@ -48,7 +38,6 @@ const strictPresenceRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: getClientIdentifier,
   handler: (req, res) => {
     res.status(429).json({
       ok: false,
