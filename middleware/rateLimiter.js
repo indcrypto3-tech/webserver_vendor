@@ -7,7 +7,7 @@ function getClientIdentifier(req) {
     return `vendor:${req.user._id.toString()}`;
   }
   // Otherwise use IP address (handles both IPv4 and IPv6)
-  return req.ip || req.connection?.remoteAddress || 'unknown';
+  return req.ip || req.socket?.remoteAddress || 'unknown';
 }
 
 // General rate limiter for presence updates
@@ -23,7 +23,7 @@ const presenceRateLimiter = rateLimit({
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false, // Disable `X-RateLimit-*` headers
   // Use vendorId from auth middleware as key if available
-  keyGenerator: (req) => getClientIdentifier(req),
+  keyGenerator: getClientIdentifier,
   handler: (req, res) => {
     res.status(429).json({
       ok: false,
@@ -48,7 +48,7 @@ const strictPresenceRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => getClientIdentifier(req),
+  keyGenerator: getClientIdentifier,
   handler: (req, res) => {
     res.status(429).json({
       ok: false,
@@ -73,7 +73,7 @@ const devOrderRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip || req.connection?.remoteAddress || 'unknown',
+  // For dev endpoints, just use IP - don't use custom keyGenerator to avoid IPv6 issues
   handler: (req, res) => {
     const limit = parseInt(process.env.DEV_ORDER_RATE_LIMIT) || 10;
     res.status(429).json({
