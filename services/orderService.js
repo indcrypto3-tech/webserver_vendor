@@ -2,7 +2,8 @@ const Order = require('../models/order');
 const Vendor = require('../models/vendor');
 const VendorPresence = require('../models/vendorPresence');
 const { notifyVendorNewOrder } = require('./notificationService');
-const { emitNewOrderToVendor } = require('./socketService');
+// Socket.IO disabled for serverless - using FCM for real-time notifications
+// const { emitNewOrderToVendor } = require('./socketService');
 
 /**
  * Validate order creation payload
@@ -148,11 +149,11 @@ async function assignVendorToOrder(order) {
 
     console.log(`Order ${order._id} assigned to vendor ${vendorId}`);
 
-    // Send push notification to vendor
+    // Send push notification to vendor (real-time delivery)
     await notifyVendorNewOrder(vendorId, order);
 
-    // Emit socket event for real-time updates
-    emitNewOrderToVendor(vendorId, order);
+    // Socket.IO disabled for serverless - FCM provides real-time notifications
+    // emitNewOrderToVendor(vendorId, order);
 
     return vendor;
   } catch (error) {
@@ -228,7 +229,8 @@ async function createOrder(data) {
     
     // Send notifications for explicitly assigned orders
     await notifyVendorNewOrder(data.vendorId, order);
-    emitNewOrderToVendor(data.vendorId, order);
+    // Socket.IO disabled for serverless
+    // emitNewOrderToVendor(data.vendorId, order);
     
     // Reload order to get updated data
     await order.populate('vendorId');

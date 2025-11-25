@@ -6,7 +6,8 @@ const fs = require('fs');
 const http = require('http');
 const config = require('./config');
 const { initializeFirebase } = require('./config/firebase');
-const { initializeSocket } = require('./services/socketService');
+// Socket.IO disabled for Vercel serverless deployment
+// const { initializeSocket } = require('./services/socketService');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -139,14 +140,8 @@ mongoose.connection.on('disconnected', () => {
 process.on('SIGINT', async () => {
   console.log('\nShutting down gracefully...');
   
-  // Close Socket.IO connections
-  const { getIO } = require('./services/socketService');
-  const io = getIO();
-  if (io) {
-    io.close(() => {
-      console.log('Socket.IO connections closed');
-    });
-  }
+  // Socket.IO disabled for serverless
+  // No persistent connections to close
   
   await mongoose.connection.close();
   console.log('MongoDB connection closed');
@@ -162,15 +157,8 @@ if (process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'production-serverles
     console.log(`📁 Uploads directory: ${uploadsPath}`);
     console.log(`🔗 API: http://localhost:${PORT}`);
     console.log(`💚 Health check: http://localhost:${PORT}/health`);
-    
-    // Initialize Socket.IO if enabled
-    if (config.enableSocketIO) {
-      initializeSocket(server);
-      console.log(`🔌 Socket.IO enabled on port ${PORT}`);
-    } else {
-      console.log('ℹ️  Socket.IO disabled (set ENABLE_SOCKET_IO=true to enable)');
-    }
-    
+    console.log('ℹ️  Socket.IO disabled (not supported on Vercel serverless)');
+    console.log('📲 Using Firebase Cloud Messaging for push notifications');
     console.log('');
   });
 }
