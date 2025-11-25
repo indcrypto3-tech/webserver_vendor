@@ -153,23 +153,28 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-// Start server
-const PORT = config.port;
-server.listen(PORT, () => {
-  console.log(`\n🚀 Server running on port ${PORT}`);
-  console.log(`📁 Uploads directory: ${uploadsPath}`);
-  console.log(`🔗 API: http://localhost:${PORT}`);
-  console.log(`💚 Health check: http://localhost:${PORT}/health`);
-  
-  // Initialize Socket.IO if enabled
-  if (config.enableSocketIO) {
-    initializeSocket(server);
-    console.log(`🔌 Socket.IO enabled on port ${PORT}`);
-  } else {
-    console.log('ℹ️  Socket.IO disabled (set ENABLE_SOCKET_IO=true to enable)');
-  }
-  
-  console.log('');
-});
+// Start server (only in non-serverless environments)
+// Vercel handles server.listen() automatically
+if (process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'production-serverless') {
+  const PORT = config.port;
+  server.listen(PORT, () => {
+    console.log(`\n🚀 Server running on port ${PORT}`);
+    console.log(`📁 Uploads directory: ${uploadsPath}`);
+    console.log(`🔗 API: http://localhost:${PORT}`);
+    console.log(`💚 Health check: http://localhost:${PORT}/health`);
+    
+    // Initialize Socket.IO if enabled
+    if (config.enableSocketIO) {
+      initializeSocket(server);
+      console.log(`🔌 Socket.IO enabled on port ${PORT}`);
+    } else {
+      console.log('ℹ️  Socket.IO disabled (set ENABLE_SOCKET_IO=true to enable)');
+    }
+    
+    console.log('');
+  });
+}
 
-module.exports = { app, server };
+// Export app for Vercel serverless (default export)
+// Vercel doesn't use server.listen(), it handles that automatically
+module.exports = app;
