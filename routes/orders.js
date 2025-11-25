@@ -1,25 +1,39 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const orderController = require('../controllers/orderController');
 
-// Debug logging for serverless environments
-if (!orderController.getOrder || !orderController.acceptOrder || !orderController.rejectOrder) {
-  console.error('ERROR: orderController functions missing!', {
-    getOrder: typeof orderController.getOrder,
-    acceptOrder: typeof orderController.acceptOrder,
-    rejectOrder: typeof orderController.rejectOrder,
-    keys: Object.keys(orderController),
-  });
+// Try-catch wrapper to handle module loading issues on serverless
+let orderController;
+try {
+  orderController = require('../controllers/orderController');
+  console.log('[orders.js] orderController loaded successfully:', Object.keys(orderController));
+} catch (error) {
+  console.error('[orders.js] CRITICAL: Failed to load orderController:', error.message);
+  console.error(error.stack);
+  // Create dummy controller to prevent crashes
+  orderController = {
+    getOrder: (req, res) => res.status(500).json({ error: 'orderController failed to load' }),
+    acceptOrder: (req, res) => res.status(500).json({ error: 'orderController failed to load' }),
+    rejectOrder: (req, res) => res.status(500).json({ error: 'orderController failed to load' }),
+  };
+}
+
+// Validate that functions exist
+if (typeof orderController.getOrder !== 'function') {
+  console.error('[orders.js] ERROR: getOrder is not a function, type:', typeof orderController.getOrder);
+}
+if (typeof orderController.acceptOrder !== 'function') {
+  console.error('[orders.js] ERROR: acceptOrder is not a function, type:', typeof orderController.acceptOrder);
+}
+if (typeof orderController.rejectOrder !== 'function') {
+  console.error('[orders.js] ERROR: rejectOrder is not a function, type:', typeof orderController.rejectOrder);
 }
 
 /**
  * GET /api/orders/:id
  * Get order details
  */
-router.get('/:id', authenticate, orderController.getOrder || ((req, res) => {
-  res.status(500).json({ error: 'getOrder function not loaded' });
-}));
+router.get('/:id', authenticate, orderController.getOrder);
 
 /**
  * POST /api/orders/:id/accept

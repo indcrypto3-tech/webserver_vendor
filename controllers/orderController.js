@@ -205,6 +205,7 @@ async function getOrder(req, res) {
   }
 }
 
+// Export immediately to avoid any issues with circular dependencies
 module.exports = {
   acceptOrder,
   rejectOrder,
