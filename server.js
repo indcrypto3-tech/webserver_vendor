@@ -3,17 +3,24 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
 const config = require('./config');
+const { initializeFirebase } = require('./config/firebase');
+const { initializeSocket } = require('./services/socketService');
 
 // Import routes
 const authRoutes = require('./routes/auth');
 const vendorRoutes = require('./routes/vendors');
 const workTypesRoutes = require('./routes/workTypes');
 const presenceRoutes = require('./routes/presence');
+const orderRoutes = require('./routes/orders');
 const { seedWorkTypes } = require('./controllers/workTypesController');
 
 // Initialize Express app
 const app = express();
+
+// Create HTTP server (needed for Socket.IO)
+const server = http.createServer(app);
 
 // Create uploads directory if it doesn't exist (skip on serverless environments)
 const uploadsPath = path.join(__dirname, config.uploadDir);
@@ -43,6 +50,7 @@ app.use('/api/vendors', vendorRoutes);
 app.use('/api/vendors', presenceRoutes); // Presence routes under /api/vendors
 app.use('/api/work-types', workTypesRoutes);
 app.use('/api', workTypesRoutes); // For /api/vendors/me/work-types
+app.use('/api/orders', orderRoutes); // Order management routes
 
 // Conditionally mount dev/mock endpoints (only when ENABLE_MOCK_ORDERS=true)
 if (config.enableMockOrders) {
@@ -97,12 +105,6 @@ app.use((req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
-  res.status(500).json({
-    message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
-  });
-});
-
 // Database connection
 mongoose
   .connect(config.mongoUri)
@@ -111,6 +113,17 @@ mongoose
     console.log(`Database: ${config.mongoUri}`);
     
     // Seed work types if database is empty
+    seedWorkTypes();
+    
+    // Initialize Firebase Admin SDK
+    if (config.enableSocketIO || config.enableMockOrders) {
+      initializeFirebase();
+    }
+  })
+  .catch((error) => {
+    console.error('MongoDB connection error:', error);
+    process.exit(1);
+  });/ Seed work types if database is empty
     seedWorkTypes();
   })
   .catch((error) => {
@@ -122,14 +135,19 @@ mongoose
 mongoose.connection.on('disconnected', () => {
   console.log('MongoDB disconnected');
 });
-
-mongoose.connection.on('error', (err) => {
-  console.error('MongoDB error:', err);
-});
-
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\nShutting down gracefully...');
+  
+  // Close Socket.IO connections
+  const { getIO } = require('./services/socketService');
+  const io = getIO();
+  if (io) {
+    io.close(() => {
+      console.log('Socket.IO connections closed');
+    });
+  }
+  
   await mongoose.connection.close();
   console.log('MongoDB connection closed');
   process.exit(0);
@@ -137,9 +155,24 @@ process.on('SIGINT', async () => {
 
 // Start server
 const PORT = config.port;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`\n🚀 Server running on port ${PORT}`);
   console.log(`📁 Uploads directory: ${uploadsPath}`);
+  console.log(`🔗 API: http://localhost:${PORT}`);
+  console.log(`💚 Health check: http://localhost:${PORT}/health`);
+  
+  // Initialize Socket.IO if enabled
+  if (config.enableSocketIO) {
+    initializeSocket(server);
+    console.log(`🔌 Socket.IO enabled on port ${PORT}`);
+  } else {
+    console.log('ℹ️  Socket.IO disabled (set ENABLE_SOCKET_IO=true to enable)');
+  }
+  
+  console.log('');
+});
+
+module.exports = { app, server };oads directory: ${uploadsPath}`);
   console.log(`🔗 API: http://localhost:${PORT}`);
   console.log(`💚 Health check: http://localhost:${PORT}/health\n`);
 });

@@ -380,10 +380,100 @@ async function createVendor(req, res) {
   }
 }
 
+/**
+ * POST /api/vendors/me/fcm-token
+ * Register or update vendor's FCM token for push notifications
+ */
+async function registerFCMToken(req, res) {
+  try {
+    const { token, deviceId, platform } = req.body;
+
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({
+        ok: false,
+        error: 'FCM token is required',
+      });
+    }
+
+    const vendor = req.user;
+
+    // Check if token already exists
+    const existingTokenIndex = vendor.fcmTokens.findIndex(t => t.token === token);
+
+    if (existingTokenIndex !== -1) {
+      // Update existing token
+      vendor.fcmTokens[existingTokenIndex].lastUsed = new Date();
+      vendor.fcmTokens[existingTokenIndex].platform = platform || 'android';
+      if (deviceId) {
+        vendor.fcmTokens[existingTokenIndex].deviceId = deviceId;
+      }
+    } else {
+      // Add new token
+      vendor.fcmTokens.push({
+        token,
+        deviceId: deviceId || null,
+        platform: platform || 'android',
+        lastUsed: new Date(),
+      });
+    }
+
+    await vendor.save();
+
+    return res.status(200).json({
+      ok: true,
+      message: 'FCM token registered successfully',
+      data: {
+        tokenCount: vendor.fcmTokens.length,
+      },
+    });
+  } catch (error) {
+    console.error('Register FCM token error:', error);
+    return res.status(500).json({
+      ok: false,
+      error: 'Server error occurred',
+    });
+  }
+}
+
+/**
+ * DELETE /api/vendors/me/fcm-token
+ * Remove vendor's FCM token (on logout)
+ */
+async function removeFCMToken(req, res) {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        ok: false,
+        error: 'FCM token is required',
+      });
+    }
+
+    const vendor = req.user;
+
+    vendor.fcmTokens = vendor.fcmTokens.filter(t => t.token !== token);
+    await vendor.save();
+
+    return res.status(200).json({
+      ok: true,
+      message: 'FCM token removed successfully',
+    });
+  } catch (error) {
+    console.error('Remove FCM token error:', error);
+    return res.status(500).json({
+      ok: false,
+      error: 'Server error occurred',
+    });
+  }
+}
+
 module.exports = {
   getMe,
   updateMe,
   createVendor,
+  registerFCMToken,
+  removeFCMToken,
   // Export helper functions for testing
   normalizeGender,
   parseSelectedServices,

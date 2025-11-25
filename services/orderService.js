@@ -1,6 +1,8 @@
 const Order = require('../models/order');
 const Vendor = require('../models/vendor');
 const VendorPresence = require('../models/vendorPresence');
+const { notifyVendorNewOrder } = require('./notificationService');
+const { emitNewOrderToVendor } = require('./socketService');
 
 /**
  * Validate order creation payload
@@ -136,8 +138,6 @@ async function assignVendorToOrder(order) {
     if (!vendor) {
       console.log('Vendor not found:', vendorId);
       return null;
-    }
-
     // Update order with vendor assignment
     order.vendorId = vendorId;
     order.status = 'assigned';
@@ -146,11 +146,13 @@ async function assignVendorToOrder(order) {
 
     console.log(`Order ${order._id} assigned to vendor ${vendorId}`);
 
-    // TODO: In production, trigger side-effects here:
-    // - Send push notification to vendor
-    // - Emit socket event for real-time updates
-    // - Send SMS notification
-    // - Create notification record in database
+    // Send push notification to vendor
+    await notifyVendorNewOrder(vendorId, order);
+
+    // Emit socket event for real-time updates
+    emitNewOrderToVendor(vendorId, order);
+
+    return vendor;tification record in database
 
     return vendor;
   } catch (error) {
@@ -204,11 +206,13 @@ async function createOrder(data) {
   // Create order
   const order = await Order.create(orderData);
 
-  console.log(`Order created: ${order._id}`);
-
   // Auto-assign vendor if requested and no specific vendor provided
   if (data.autoAssignVendor && !data.vendorId) {
-    await assignVendorToOrder(order);
+    const assignedVendor = await assignVendorToOrder(order);
+    if (assignedVendor) {
+      // Reload order to get updated data with vendor populated
+      await order.populate('vendorId');
+    }
   } else if (data.vendorId) {
     // Verify vendor exists and update order status
     const vendor = await Vendor.findById(data.vendorId);
@@ -221,16 +225,16 @@ async function createOrder(data) {
     order.status = 'assigned';
     order.assignedAt = new Date();
     await order.save();
+    
+    // Send notifications for explicitly assigned orders
+    await notifyVendorNewOrder(data.vendorId, order);
+    emitNewOrderToVendor(data.vendorId, order);
+    
+    // Reload order to get updated data
+    await order.populate('vendorId');
   }
 
-  // Reload order to get updated data
-  await order.populate('vendorId');
-
-  // TODO: In production, trigger side-effects here:
-  // - Send confirmation email/SMS to customer
-  // - Create order confirmation notification
-  // - Emit socket event for real-time dashboard updates
-  // - Log to analytics service
+  return order;nalytics service
 
   return order;
 }

@@ -23,4 +23,15 @@ module.exports = {
   // Mock order endpoint configuration (dev-only)
   enableMockOrders: process.env.ENABLE_MOCK_ORDERS === 'true',
   mockOrdersSecret: process.env.MOCK_ORDERS_SECRET || '',
+  
+  // Socket.IO configuration
+  enableSocketIO: process.env.ENABLE_SOCKET_IO === 'true',
+  socketCorsOrigin: process.env.SOCKET_CORS_ORIGIN || '*',
+  
+  // Firebase Cloud Messaging configuration
+  firebaseProjectId: process.env.FIREBASE_PROJECT_ID || '',
+  firebasePrivateKeyPath: process.env.FIREBASE_PRIVATE_KEY_PATH || '',
+  firebaseServiceAccount: process.env.FIREBASE_SERVICE_ACCOUNT || '',
+  firebasePrivateKey: process.env.FIREBASE_PRIVATE_KEY || '',
+  firebaseClientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
 };

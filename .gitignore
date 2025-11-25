@@ -80,3 +80,5 @@ temp/
 # Documentation (optional - uncomment to ignore generated/temporary docs)
  *.md
  !README.md
+
+ config/firebase-service-account.json

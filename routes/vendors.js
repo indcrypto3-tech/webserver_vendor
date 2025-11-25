@@ -23,4 +23,16 @@ router.get('/me', authenticate, vendorController.getMe);
  */
 router.patch('/me', authenticate, uploadIdentityImages, handleUploadErrors, vendorController.updateMe);
 
+/**
+ * POST /api/vendors/me/fcm-token
+ * Register FCM token for push notifications
+ */
+router.post('/me/fcm-token', authenticate, vendorController.registerFCMToken);
+
+/**
+ * DELETE /api/vendors/me/fcm-token
+ * Remove FCM token (on logout)
+ */
+router.delete('/me/fcm-token', authenticate, vendorController.removeFCMToken);
+
 module.exports = router;
