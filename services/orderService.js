@@ -94,6 +94,17 @@ async function findNearbyOnlineVendors(location, maxDistanceMeters = 10000) {
   try {
     console.log(`🔍 Searching for vendors near [${location.lng}, ${location.lat}] within ${maxDistanceMeters}m`);
     
+    // First, check how many vendors are online (without location filter)
+    const allOnlineCount = await VendorPresence.countDocuments({ online: true });
+    console.log(`   Total online vendors in DB: ${allOnlineCount}`);
+    
+    // Check if any have valid locations
+    const withLocationCount = await VendorPresence.countDocuments({ 
+      online: true, 
+      'loc.coordinates': { $exists: true, $ne: null } 
+    });
+    console.log(`   Online vendors with location: ${withLocationCount}`);
+    
     const nearbyPresences = await VendorPresence.find({
       online: true,
       loc: {
@@ -109,12 +120,13 @@ async function findNearbyOnlineVendors(location, maxDistanceMeters = 10000) {
 
     console.log(`✅ Found ${nearbyPresences.length} online vendors nearby`);
     nearbyPresences.forEach(p => {
-      console.log(`   - Vendor ${p.vendorId} at [${p.loc.coordinates}]`);
+      console.log(`   - Vendor ${p.vendorId} at [${p.loc?.coordinates}]`);
     });
 
     return nearbyPresences.map(p => p.vendorId);
   } catch (error) {
     console.error('❌ Error finding nearby vendors:', error);
+    console.error('Error details:', error.message);
     return [];
   }
 }
