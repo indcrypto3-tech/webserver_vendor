@@ -32,22 +32,13 @@ if (typeof orderController.rejectOrder !== 'function') {
   console.error('[orders.js] rejectOrder value:', orderController.rejectOrder);
 }
 
-// Extract functions to local variables to avoid reference issues
-const getOrderFunc = orderController.getOrder;
-const acceptOrderFunc = orderController.acceptOrder;
-const rejectOrderFunc = orderController.rejectOrder;
-
-console.log('[orders.js] Extracted functions:', {
-  getOrderFunc: typeof getOrderFunc,
-  acceptOrderFunc: typeof acceptOrderFunc,
-  rejectOrderFunc: typeof rejectOrderFunc,
-});
-
 /**
  * GET /api/orders/:id
  * Get order details
  */
-router.get('/:id', authenticate, getOrderFunc);
+router.get('/:id', authenticate, function getOrderWrapper(req, res) {
+  return orderController.getOrder(req, res);
+});
 
 /**
  * POST /api/orders/:id/accept
@@ -58,7 +49,18 @@ router.post('/:id/accept', authenticate, acceptOrderFunc);
 /**
  * POST /api/orders/:id/reject
  * Reject an order (vendor only)
+/**
+ * POST /api/orders/:id/accept
+ * Accept an order (vendor only)
  */
-router.post('/:id/reject', authenticate, rejectOrderFunc);
+router.post('/:id/accept', authenticate, function acceptOrderWrapper(req, res) {
+  return orderController.acceptOrder(req, res);
+});
 
-module.exports = router;
+/**
+ * POST /api/orders/:id/reject
+ * Reject an order (vendor only)
+ */
+router.post('/:id/reject', authenticate, function rejectOrderWrapper(req, res) {
+  return orderController.rejectOrder(req, res);
+});
