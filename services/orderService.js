@@ -105,20 +105,18 @@ async function findNearbyOnlineVendors(location, maxDistanceMeters = 10000) {
     });
     console.log(`   Online vendors with location: ${withLocationCount}`);
     
+    // Try using $geoWithin with a large circle instead of $near
+    // This might work better on some MongoDB configurations
     const nearbyPresences = await VendorPresence.find({
       online: true,
       loc: {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [location.lng, location.lat],
-          },
-          $maxDistance: maxDistanceMeters,
-        },
-      },
+        $geoWithin: {
+          $centerSphere: [[location.lng, location.lat], maxDistanceMeters / 6378100] // Convert meters to radians
+        }
+      }
     }).limit(10);
 
-    console.log(`✅ Found ${nearbyPresences.length} online vendors nearby`);
+    console.log(`✅ Found ${nearbyPresences.length} online vendors nearby (using $geoWithin)`);
     nearbyPresences.forEach(p => {
       console.log(`   - Vendor ${p.vendorId} at [${p.loc?.coordinates}]`);
     });
