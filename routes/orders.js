@@ -3,11 +3,23 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const orderController = require('../controllers/orderController');
 
+// Debug logging for serverless environments
+if (!orderController.getOrder || !orderController.acceptOrder || !orderController.rejectOrder) {
+  console.error('ERROR: orderController functions missing!', {
+    getOrder: typeof orderController.getOrder,
+    acceptOrder: typeof orderController.acceptOrder,
+    rejectOrder: typeof orderController.rejectOrder,
+    keys: Object.keys(orderController),
+  });
+}
+
 /**
  * GET /api/orders/:id
  * Get order details
  */
-router.get('/:id', authenticate, orderController.getOrder);
+router.get('/:id', authenticate, orderController.getOrder || ((req, res) => {
+  res.status(500).json({ error: 'getOrder function not loaded' });
+}));
 
 /**
  * POST /api/orders/:id/accept
