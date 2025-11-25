@@ -24,6 +24,11 @@ try {
 const authMiddleware = authenticate || ((req, res, next) => next());
 
 /**
+ * GET /api/orders/:id - Get order details (vendor only)
+ */
+router.get('/:id', authMiddleware, (req, res) => orderController.getOrder(req, res));
+
+/**
  * POST /api/orders/:id/accept - Accept an order (vendor only)
  */
 router.post('/:id/accept', authMiddleware, (req, res) => orderController.acceptOrder(req, res));
@@ -32,10 +37,5 @@ router.post('/:id/accept', authMiddleware, (req, res) => orderController.acceptO
  * POST /api/orders/:id/reject - Reject an order (vendor only)
  */
 router.post('/:id/reject', authMiddleware, (req, res) => orderController.rejectOrder(req, res));
-
-/**
- * POST /api/orders/:id/reject - Reject an order (vendor only)
- */
-router.post('/:id/reject', authenticate, (req, res) => orderController.rejectOrder(req, res));
 
 module.exports = router;
