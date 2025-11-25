@@ -1,8 +1,15 @@
-const { updateOrderStatus } = require('../services/orderService');
-
-// Lazy load these to avoid circular dependency issues on serverless
+// Lazy load all dependencies to avoid circular dependency issues on serverless
+let orderService;
 let notificationService;
 let socketService;
+let Order;
+
+function getOrderService() {
+  if (!orderService) {
+    orderService = require('../services/orderService');
+  }
+  return orderService;
+}
 
 function getNotificationService() {
   if (!notificationService) {
@@ -16,6 +23,13 @@ function getSocketService() {
     socketService = require('../services/socketService');
   }
   return socketService;
+}
+
+function getOrderModel() {
+  if (!Order) {
+    Order = require('../models/order');
+  }
+  return Order;
 }
 
 /**
@@ -53,6 +67,7 @@ async function acceptOrder(req, res) {
     }
 
     // Update order status
+    const { updateOrderStatus } = getOrderService();
     const updatedOrder = await updateOrderStatus(id, 'accepted');
 
     // Send notifications
@@ -91,7 +106,7 @@ async function rejectOrder(req, res) {
     const vendor = req.user; // Set by authenticate middleware
 
     // Get order and verify it's assigned to this vendor
-    const Order = require('../models/order');
+    const Order = getOrderModel();
     const order = await Order.findById(id);
 
     if (!order) {
@@ -159,7 +174,7 @@ async function getOrder(req, res) {
     const { id } = req.params;
     const vendor = req.user; // Set by authenticate middleware
 
-    const Order = require('../models/order');
+    const Order = getOrderModel();
     const order = await Order.findById(id).populate('vendorId');
 
     if (!order) {
