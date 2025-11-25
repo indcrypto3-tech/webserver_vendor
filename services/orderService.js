@@ -92,38 +92,19 @@ function validateOrderData(data) {
  */
 async function findNearbyOnlineVendors(location, maxDistanceMeters = 10000) {
   try {
-    console.log(`🔍 Searching for vendors near [${location.lng}, ${location.lat}] within ${maxDistanceMeters}m`);
+    console.log(`🔍 [TEST MODE] Finding ALL online vendors (ignoring location)`);
     
-    // First, check how many vendors are online (without location filter)
-    const allOnlineCount = await VendorPresence.countDocuments({ online: true });
-    console.log(`   Total online vendors in DB: ${allOnlineCount}`);
+    // TESTING: Get ALL online vendors regardless of location
+    const allOnlinePresences = await VendorPresence.find({ online: true }).limit(10);
     
-    // Check if any have valid locations
-    const withLocationCount = await VendorPresence.countDocuments({ 
-      online: true, 
-      'loc.coordinates': { $exists: true, $ne: null } 
-    });
-    console.log(`   Online vendors with location: ${withLocationCount}`);
-    
-    // Try using $geoWithin with a large circle instead of $near
-    // This might work better on some MongoDB configurations
-    const nearbyPresences = await VendorPresence.find({
-      online: true,
-      loc: {
-        $geoWithin: {
-          $centerSphere: [[location.lng, location.lat], maxDistanceMeters / 6378100] // Convert meters to radians
-        }
-      }
-    }).limit(10);
-
-    console.log(`✅ Found ${nearbyPresences.length} online vendors nearby (using $geoWithin)`);
-    nearbyPresences.forEach(p => {
+    console.log(`✅ Found ${allOnlinePresences.length} online vendors`);
+    allOnlinePresences.forEach(p => {
       console.log(`   - Vendor ${p.vendorId} at [${p.loc?.coordinates}]`);
     });
 
-    return nearbyPresences.map(p => p.vendorId);
+    return allOnlinePresences.map(p => p.vendorId);
   } catch (error) {
-    console.error('❌ Error finding nearby vendors:', error);
+    console.error('❌ Error finding online vendors:', error);
     console.error('Error details:', error.message);
     return [];
   }
