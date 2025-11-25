@@ -19,4 +19,8 @@ module.exports = {
   
   // Vendor presence TTL (Time To Live)
   presenceTTLSeconds: parseInt(process.env.PRESENCE_TTL_SECONDS) || 90, // Default 90 seconds
+  
+  // Mock order endpoint configuration (dev-only)
+  enableMockOrders: process.env.ENABLE_MOCK_ORDERS === 'true',
+  mockOrdersSecret: process.env.MOCK_ORDERS_SECRET || '',
 };

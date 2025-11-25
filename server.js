@@ -44,6 +44,18 @@ app.use('/api/vendors', presenceRoutes); // Presence routes under /api/vendors
 app.use('/api/work-types', workTypesRoutes);
 app.use('/api', workTypesRoutes); // For /api/vendors/me/work-types
 
+// Conditionally mount dev/mock endpoints (only when ENABLE_MOCK_ORDERS=true)
+if (config.enableMockOrders) {
+  console.log('⚠️  Mock order endpoint enabled (ENABLE_MOCK_ORDERS=true)');
+  if (!config.mockOrdersSecret) {
+    console.warn('⚠️  WARNING: MOCK_ORDERS_SECRET not set. Mock endpoints are vulnerable!');
+  }
+  const devOrdersRoutes = require('./routes/devOrders');
+  app.use('/api/dev', devOrdersRoutes);
+} else {
+  console.log('ℹ️  Mock order endpoint disabled (set ENABLE_MOCK_ORDERS=true to enable)');
+}
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({

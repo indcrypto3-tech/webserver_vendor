@@ -56,7 +56,38 @@ const strictPresenceRateLimiter = rateLimit({
   },
 });
 
+// Rate limiter for dev/mock order endpoints
+// Allows 10 requests per minute (configurable via env)
+const devOrderRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute window
+  max: parseInt(process.env.DEV_ORDER_RATE_LIMIT) || 10, // Default: 10 requests per minute
+  message: {
+    ok: false,
+    error: 'Too many mock order requests. Please try again later.',
+    details: ['Rate limit: 10 requests per minute'],
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req, res) => {
+    // Use IP address as key for dev endpoints
+    return req.ip || req.connection.remoteAddress;
+  },
+  handler: (req, res) => {
+    const limit = parseInt(process.env.DEV_ORDER_RATE_LIMIT) || 10;
+    res.status(429).json({
+      ok: false,
+      error: 'Too many mock order requests. Please try again later.',
+      details: [`Rate limit exceeded: ${limit} requests per minute`],
+    });
+  },
+  skip: (req) => {
+    // Skip rate limiting in test environment
+    return process.env.NODE_ENV === 'test' && process.env.SKIP_RATE_LIMIT === 'true';
+  },
+});
+
 module.exports = {
   presenceRateLimiter,
   strictPresenceRateLimiter,
+  devOrderRateLimiter,
 };
