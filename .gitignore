@@ -9,6 +9,11 @@ patches/
 .env.local
 .env.*.local
 
+# Firebase credentials (CRITICAL - never commit these!)
+config/firebase-service-account.json
+firebase-service-account.json
+**/firebase-service-account*.json
+
 # Logs
 logs
 *.log
@@ -78,7 +83,5 @@ temp/
 .vercel
 
 # Documentation (optional - uncomment to ignore generated/temporary docs)
- *.md
- !README.md
-
-./config/firebase-service-account.json
+# *.md
+# !README.md
