@@ -34,14 +34,14 @@ function getOrderModel() {
 
 /**
  * POST /api/orders/:id/accept
- * Accept an order assigned to authenticated vendor
+ * Accept an order (first vendor to accept gets it)
  */
 async function acceptOrder(req, res) {
   try {
     const { id } = req.params;
     const vendor = req.user; // Set by authenticate middleware
 
-    // Get order and verify it's assigned to this vendor
+    // Get order
     const Order = require('../models/order');
     const order = await Order.findById(id);
 
@@ -52,40 +52,82 @@ async function acceptOrder(req, res) {
       });
     }
 
-    if (!order.vendorId || order.vendorId.toString() !== vendor._id.toString()) {
-      return res.status(403).json({
-        ok: false,
-        error: 'Order not assigned to you',
+    // Check if order is available to accept
+    // Can accept if: status is 'pending' (broadcast) OR 'assigned' to this vendor
+    if (order.status === 'pending') {
+      // First vendor to accept wins (race condition handled by MongoDB)
+      // Try to claim the order atomically
+      const claimed = await Order.findOneAndUpdate(
+        { 
+          _id: id, 
+          status: 'pending' 
+        },
+        {
+          $set: {
+            vendorId: vendor._id,
+            status: 'accepted',
+            acceptedAt: new Date(),
+            assignedAt: new Date(),
+          }
+        },
+        { new: true }
+      );
+
+      if (!claimed) {
+        // Another vendor already claimed it
+        return res.status(409).json({
+          ok: false,
+          error: 'Order already accepted by another vendor',
+        });
+      }
+
+      console.log(`✅ Vendor ${vendor._id} claimed order ${id}`);
+
+      // Send notifications
+      const { notifyVendorOrderStatusUpdate, notifyCustomerOrderStatusUpdate } = getNotificationService();
+      await notifyVendorOrderStatusUpdate(vendor._id, claimed, 'accepted');
+      if (claimed.customerId) {
+        await notifyCustomerOrderStatusUpdate(claimed.customerId, claimed, 'accepted');
+      }
+
+      return res.status(200).json({
+        ok: true,
+        message: 'Order accepted successfully',
+        data: claimed.toPublicJSON ? claimed.toPublicJSON() : claimed,
       });
     }
+    else if (order.status === 'assigned') {
+      // Legacy flow: order assigned to specific vendor
+      if (!order.vendorId || order.vendorId.toString() !== vendor._id.toString()) {
+        return res.status(403).json({
+          ok: false,
+          error: 'Order not assigned to you',
+        });
+      }
 
-    if (order.status !== 'assigned') {
+      // Update order status
+      const { updateOrderStatus } = getOrderService();
+      const updatedOrder = await updateOrderStatus(id, 'accepted');
+
+      // Send notifications
+      const { notifyVendorOrderStatusUpdate, notifyCustomerOrderStatusUpdate } = getNotificationService();
+      await notifyVendorOrderStatusUpdate(vendor._id, updatedOrder, 'accepted');
+      if (updatedOrder.customerId) {
+        await notifyCustomerOrderStatusUpdate(updatedOrder.customerId, updatedOrder, 'accepted');
+      }
+
+      return res.status(200).json({
+        ok: true,
+        message: 'Order accepted successfully',
+        data: updatedOrder.toPublicJSON ? updatedOrder.toPublicJSON() : updatedOrder,
+      });
+    }
+    else {
       return res.status(400).json({
         ok: false,
         error: `Cannot accept order in ${order.status} status`,
       });
     }
-
-    // Update order status
-    const { updateOrderStatus } = getOrderService();
-    const updatedOrder = await updateOrderStatus(id, 'accepted');
-
-    // Send notifications
-    const { notifyVendorOrderStatusUpdate, notifyCustomerOrderStatusUpdate } = getNotificationService();
-    await notifyVendorOrderStatusUpdate(vendor._id, updatedOrder, 'accepted');
-    if (updatedOrder.customerId) {
-      await notifyCustomerOrderStatusUpdate(updatedOrder.customerId, updatedOrder, 'accepted');
-    }
-
-    // Emit socket event
-    const { emitOrderStatusUpdate } = getSocketService();
-    emitOrderStatusUpdate(vendor._id, updatedOrder, 'accepted');
-
-    return res.status(200).json({
-      ok: true,
-      message: 'Order accepted successfully',
-      data: updatedOrder.toPublicJSON ? updatedOrder.toPublicJSON() : updatedOrder,
-    });
   } catch (error) {
     console.error('Accept order error:', error);
     return res.status(error.statusCode || 500).json({

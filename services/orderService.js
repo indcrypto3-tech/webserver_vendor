@@ -111,51 +111,69 @@ async function findNearbyOnlineVendors(location, maxDistanceMeters = 10000) {
 }
 
 /**
- * Assign a vendor to an order
- * Uses vendor presence data to find nearby online vendors
+ * Broadcast order to all online vendors
+ * Sends push notifications to ALL online vendors
+ * Order status remains 'pending' until a vendor accepts
  * @param {Object} order - Order document
- * @returns {Promise<Object|null>} - Assigned vendor or null
+ * @returns {Promise<Object>} - Result with notification stats
  */
-async function assignVendorToOrder(order) {
+async function broadcastOrderToVendors(order) {
   try {
-    // Find nearby online vendors
-    const nearbyVendorIds = await findNearbyOnlineVendors({
+    // Find all online vendors
+    const onlineVendorIds = await findNearbyOnlineVendors({
       lat: order.pickup.coordinates[1],
       lng: order.pickup.coordinates[0],
     });
 
-    if (nearbyVendorIds.length === 0) {
-      console.log('No online vendors found nearby');
-      return null;
+    if (onlineVendorIds.length === 0) {
+      console.log('No online vendors found to broadcast');
+      return { success: false, notifiedCount: 0 };
     }
 
-    // For now, assign to the first available vendor
-    // In production, implement more sophisticated logic (load balancing, ratings, etc.)
-    const vendorId = nearbyVendorIds[0];
-    const vendor = await Vendor.findById(vendorId);
+    console.log(`📢 Broadcasting order ${order._id} to ${onlineVendorIds.length} online vendors`);
 
-    if (!vendor) {
-      console.log('Vendor not found:', vendorId);
-      return null;
+    // Send push notification to ALL online vendors
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (const vendorId of onlineVendorIds) {
+      try {
+        const result = await notifyVendorNewOrder(vendorId, order);
+        if (result.success) {
+          successCount++;
+        } else {
+          failureCount++;
+        }
+      } catch (error) {
+        console.error(`Failed to notify vendor ${vendorId}:`, error.message);
+        failureCount++;
+      }
     }
 
-    // Update order with vendor assignment
-    order.vendorId = vendorId;
-    order.status = 'assigned';
-    order.assignedAt = new Date();
-    await order.save();
+    console.log(`✅ Broadcast complete: ${successCount} sent, ${failureCount} failed`);
 
-    console.log(`Order ${order._id} assigned to vendor ${vendorId}`);
-
-    // Send push notification to vendor (real-time delivery)
-    await notifyVendorNewOrder(vendorId, order);
-
-    // Socket.IO disabled for serverless - FCM provides real-time notifications
-    // emitNewOrderToVendor(vendorId, order);
-
-    return vendor;
+    return { 
+      success: true, 
+      notifiedCount: successCount,
+      failedCount: failureCount,
+      totalVendors: onlineVendorIds.length
+    };
   } catch (error) {
-    console.error('Error assigning vendor:', error);
+    console.error('Error broadcasting to vendors:', error);
+    return { success: false, notifiedCount: 0 };
+  }
+}
+
+/**
+ * Assign a vendor to an order (DEPRECATED - use broadcastOrderToVendors instead)
+ * This is kept for backward compatibility
+ */
+async function assignVendorToOrder(order) {
+  try {
+    // New behavior: Broadcast to all online vendors instead of assigning to one
+    return await broadcastOrderToVendors(order);
+  } catch (error) {
+    console.error('Error in assignVendorToOrder:', error);
     return null;
   }
 }
@@ -207,11 +225,13 @@ async function createOrder(data) {
 
   // Auto-assign vendor if requested and no specific vendor provided
   if (data.autoAssignVendor && !data.vendorId) {
-    const assignedVendor = await assignVendorToOrder(order);
-    if (assignedVendor) {
-      // Reload order to get updated data with vendor populated
-      await order.populate('vendorId');
-    }
+    // Broadcast to all online vendors (order stays in 'pending' status)
+    const broadcastResult = await broadcastOrderToVendors(order);
+    console.log(`📢 Order broadcast result:`, broadcastResult);
+    
+    // Order remains 'pending' until a vendor accepts it
+    // Reload order to get latest data
+    await order.populate('vendorId');
   } else if (data.vendorId) {
     // Verify vendor exists and update order status
     const vendor = await Vendor.findById(data.vendorId);
