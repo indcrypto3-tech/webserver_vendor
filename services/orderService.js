@@ -92,6 +92,8 @@ function validateOrderData(data) {
  */
 async function findNearbyOnlineVendors(location, maxDistanceMeters = 10000) {
   try {
+    console.log(`🔍 Searching for vendors near [${location.lng}, ${location.lat}] within ${maxDistanceMeters}m`);
+    
     const nearbyPresences = await VendorPresence.find({
       online: true,
       loc: {
@@ -105,9 +107,14 @@ async function findNearbyOnlineVendors(location, maxDistanceMeters = 10000) {
       },
     }).limit(10);
 
+    console.log(`✅ Found ${nearbyPresences.length} online vendors nearby`);
+    nearbyPresences.forEach(p => {
+      console.log(`   - Vendor ${p.vendorId} at [${p.loc.coordinates}]`);
+    });
+
     return nearbyPresences.map(p => p.vendorId);
   } catch (error) {
-    console.error('Error finding nearby vendors:', error);
+    console.error('❌ Error finding nearby vendors:', error);
     return [];
   }
 }
