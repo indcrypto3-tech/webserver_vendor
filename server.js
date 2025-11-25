@@ -36,6 +36,10 @@ try {
   console.warn('File uploads will not persist. Consider using cloud storage (S3/Cloudinary).');
 }
 
+// Trust proxy - Required for Vercel deployment
+// This enables Express to trust the X-Forwarded-* headers from Vercel's proxy
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json()); // Parse JSON request bodies
