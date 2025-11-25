@@ -152,8 +152,6 @@ async function assignVendorToOrder(order) {
     // Emit socket event for real-time updates
     emitNewOrderToVendor(vendorId, order);
 
-    return vendor;tification record in database
-
     return vendor;
   } catch (error) {
     console.error('Error assigning vendor:', error);

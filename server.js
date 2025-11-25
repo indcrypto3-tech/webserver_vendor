@@ -105,6 +105,12 @@ app.use((req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
+  res.status(500).json({
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
+  });
+});
+
 // Database connection
 mongoose
   .connect(config.mongoUri)
@@ -119,12 +125,6 @@ mongoose
     if (config.enableSocketIO || config.enableMockOrders) {
       initializeFirebase();
     }
-  })
-  .catch((error) => {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
-  });// Seed work types if database is empty
-    seedWorkTypes();
   })
   .catch((error) => {
     console.error('MongoDB connection error:', error);
@@ -172,9 +172,4 @@ server.listen(PORT, () => {
   console.log('');
 });
 
-module.exports = { app, server };oads directory: ${uploadsPath}`);
-  console.log(`🔗 API: http://localhost:${PORT}`);
-  console.log(`💚 Health check: http://localhost:${PORT}/health\n`);
-});
-
-module.exports = app;
+module.exports = { app, server };
