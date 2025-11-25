@@ -7,7 +7,6 @@ const vendorPresenceSchema = new mongoose.Schema(
       ref: 'Vendor',
       required: true,
       unique: true,
-      index: true,
     },
     online: {
       type: Boolean,
@@ -43,8 +42,7 @@ const vendorPresenceSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-vendorPresenceSchema.index({ vendorId: 1 }, { unique: true });
+// Indexes (vendorId already indexed via unique:true in schema)
 vendorPresenceSchema.index({ loc: '2dsphere' }, { sparse: true }); // Sparse index: only index docs with loc
 vendorPresenceSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index
 

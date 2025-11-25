@@ -33,8 +33,7 @@ const workTypeSchema = new mongoose.Schema(
   }
 );
 
-// Index for performance
-workTypeSchema.index({ slug: 1 });
+// Index for performance (slug already indexed via unique:true)
 workTypeSchema.index({ isActive: 1 });
 
 const WorkType = mongoose.model('WorkType', workTypeSchema);
