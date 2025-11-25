@@ -18,49 +18,19 @@ try {
   };
 }
 
-// Validate that functions exist
-if (typeof orderController.getOrder !== 'function') {
-  console.error('[orders.js] ERROR: getOrder is not a function, type:', typeof orderController.getOrder);
-  console.error('[orders.js] getOrder value:', orderController.getOrder);
-}
-if (typeof orderController.acceptOrder !== 'function') {
-  console.error('[orders.js] ERROR: acceptOrder is not a function, type:', typeof orderController.acceptOrder);
-  console.error('[orders.js] acceptOrder value:', orderController.acceptOrder);
-}
-if (typeof orderController.rejectOrder !== 'function') {
-  console.error('[orders.js] ERROR: rejectOrder is not a function, type:', typeof orderController.rejectOrder);
-  console.error('[orders.js] rejectOrder value:', orderController.rejectOrder);
-}
+/**
+ * GET /api/orders/:id - Get order details
+ */
+router.get('/:id', authenticate, (req, res) => orderController.getOrder(req, res));
 
 /**
- * GET /api/orders/:id
- * Get order details
+ * POST /api/orders/:id/accept - Accept an order (vendor only)
  */
-router.get('/:id', authenticate, function getOrderWrapper(req, res) {
-  return orderController.getOrder(req, res);
-});
+router.post('/:id/accept', authenticate, (req, res) => orderController.acceptOrder(req, res));
 
 /**
- * POST /api/orders/:id/accept
- * Accept an order (vendor only)
+ * POST /api/orders/:id/reject - Reject an order (vendor only)
  */
-router.post('/:id/accept', authenticate, acceptOrderFunc);
+router.post('/:id/reject', authenticate, (req, res) => orderController.rejectOrder(req, res));
 
-/**
- * POST /api/orders/:id/reject
- * Reject an order (vendor only)
-/**
- * POST /api/orders/:id/accept
- * Accept an order (vendor only)
- */
-router.post('/:id/accept', authenticate, function acceptOrderWrapper(req, res) {
-  return orderController.acceptOrder(req, res);
-});
-
-/**
- * POST /api/orders/:id/reject
- * Reject an order (vendor only)
- */
-router.post('/:id/reject', authenticate, function rejectOrderWrapper(req, res) {
-  return orderController.rejectOrder(req, res);
-});
+module.exports = router;
