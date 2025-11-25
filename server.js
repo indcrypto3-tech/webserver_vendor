@@ -77,7 +77,7 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.status(200).json({
     message: 'Vendor Backend API',
-    version: '1.0.0',
+    version: '1.0.1',
     endpoints: {
       auth: {
         sendOtp: 'POST /api/auth/send-otp',
