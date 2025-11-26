@@ -1,41 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const requestId = require('../middleware/requestId');
 
-console.log('[orders.js] authenticate middleware type:', typeof authenticate);
+// Load our new orders controller (keeps existing file untouched)
+const ordersController = require('../controllers/ordersController');
 
-// Try-catch wrapper to handle module loading issues on serverless
-let orderController;
-try {
-  orderController = require('../controllers/orderController');
-  console.log('[orders.js] orderController loaded successfully:', Object.keys(orderController));
-} catch (error) {
-  console.error('[orders.js] CRITICAL: Failed to load orderController:', error.message);
-  console.error(error.stack);
-  // Create dummy controller to prevent crashes
-  orderController = {
-    getOrder: (req, res) => res.status(500).json({ error: 'orderController failed to load' }),
-    acceptOrder: (req, res) => res.status(500).json({ error: 'orderController failed to load' }),
-    rejectOrder: (req, res) => res.status(500).json({ error: 'orderController failed to load' }),
-  };
-}
-
-// Create safe middleware wrapper
+// Apply requestId and auth middleware
 const authMiddleware = authenticate || ((req, res, next) => next());
 
-/**
- * GET /api/orders/:id - Get order details (vendor only)
- */
-router.get('/:id', authMiddleware, (req, res) => orderController.getOrder(req, res));
+router.use(requestId);
 
-/**
- * POST /api/orders/:id/accept - Accept an order (vendor only)
- */
-router.post('/:id/accept', authMiddleware, (req, res) => orderController.acceptOrder(req, res));
+// List orders for vendor
+router.get('/', authMiddleware, (req, res) => ordersController.listOrders(req, res));
 
-/**
- * POST /api/orders/:id/reject - Reject an order (vendor only)
- */
-router.post('/:id/reject', authMiddleware, (req, res) => orderController.rejectOrder(req, res));
+// Get single order
+router.get('/:orderId', authMiddleware, (req, res) => ordersController.getOrder(req, res));
+
+// Accept / Reject / Start / Complete / Cancel
+router.post('/:orderId/accept', authMiddleware, (req, res) => ordersController.acceptOrder(req, res));
+router.post('/:orderId/reject', authMiddleware, (req, res) => ordersController.rejectOrder(req, res));
+router.post('/:orderId/start', authMiddleware, (req, res) => ordersController.startOrder(req, res));
+router.post('/:orderId/complete', authMiddleware, (req, res) => ordersController.completeOrder(req, res));
+router.post('/:orderId/cancel', authMiddleware, (req, res) => ordersController.cancelOrder(req, res));
 
 module.exports = router;

@@ -1,5 +1,5 @@
-const { getMessaging } = require('../config/firebase');
 const Vendor = require('../models/vendor');
+
 
 /**
  * Send push notification to vendor
@@ -10,7 +10,9 @@ const Vendor = require('../models/vendor');
  */
 async function sendPushToVendor(vendorId, notification, data = {}) {
   try {
-    const messaging = getMessaging();
+    // Require lazily so tests can mock ../config/firebase before this runs
+    const { getMessaging } = require('../config/firebase');
+    const messaging = getMessaging && getMessaging();
     if (!messaging) {
       console.log('⚠️  Firebase not configured, skipping push notification');
       return { success: false, error: 'Firebase not configured' };
@@ -65,8 +67,14 @@ async function sendPushToVendor(vendorId, notification, data = {}) {
 
     console.log('📨 FCM Message payload:', JSON.stringify(message, null, 2));
 
-    // Send notification using Admin SDK v13 - sendEachForMulticast
-    const response = await messaging.sendEachForMulticast(message);
+    // Send notification using whichever multicast API the SDK/mock exposes
+    const sendFn = messaging.sendMulticast || messaging.sendEachForMulticast || messaging.sendEachForMulticastAsync || messaging.sendAll || messaging.send;
+    if (!sendFn) {
+      console.log('⚠️  Messaging send function not available on mocked messaging object');
+      return { success: false, error: 'Messaging API not available' };
+    }
+
+    const response = await sendFn.call(messaging, message);
 
     console.log(`✅ Push notification sent successfully: ${response.successCount}/${tokens.length} delivered`);
 

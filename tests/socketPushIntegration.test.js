@@ -9,6 +9,23 @@ const request = require('supertest');
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const io = require('socket.io-client');
+// Mock Firebase Admin SDK early so server and services pick up the mock
+// Create a shared mock messaging object so both the service and the test
+// inspect the same `sendMulticast` mock function.
+const mockMessaging = {
+  sendMulticast: jest.fn(async () => ({
+    successCount: 1,
+    failureCount: 0,
+    responses: [{ success: true }],
+  })),
+};
+
+jest.mock('../config/firebase', () => ({
+  initializeFirebase: jest.fn(() => ({ name: 'mock-app' })),
+  getMessaging: jest.fn(() => mockMessaging),
+  isFirebaseConfigured: jest.fn(() => true),
+}));
+
 const { app, server } = require('../server');
 const Vendor = require('../models/vendor');
 const VendorPresence = require('../models/vendorPresence');
@@ -23,18 +40,6 @@ let testVendorToken;
 let onlineVendor;
 let onlineVendorToken;
 
-// Mock Firebase Admin SDK
-jest.mock('../config/firebase', () => ({
-  initializeFirebase: jest.fn(() => ({ name: 'mock-app' })),
-  getMessaging: jest.fn(() => ({
-    sendMulticast: jest.fn(async () => ({
-      successCount: 1,
-      failureCount: 0,
-      responses: [{ success: true }],
-    })),
-  })),
-  isFirebaseConfigured: jest.fn(() => true),
-}));
 
 beforeAll(async () => {
   // Create in-memory MongoDB instance
@@ -114,6 +119,14 @@ beforeEach(async () => {
   await MockOrderCall.deleteMany({});
 });
 
+afterEach(async () => {
+  // Ensure socket client is closed between tests to avoid cross-test events
+  if (socketClient) {
+    try { socketClient.close(); } catch (e) {}
+    socketClient = null;
+  }
+});
+
 describe('Socket.IO Integration', () => {
   test('should connect to Socket.IO server', (done) => {
     const address = server.address();
@@ -172,6 +185,9 @@ describe('Socket.IO Integration', () => {
     socketClient.on('auth:success', async () => {
       // Create mock order via API
       try {
+        // Ensure only our test online vendor presence exists to avoid receiving events for other orders
+        await VendorPresence.deleteMany({ vendorId: { $ne: onlineVendor._id } });
+
         const response = await request(app)
           .post('/api/dev/orders/mock')
           .set('x-dev-key', 'test-secret')
@@ -208,6 +224,8 @@ describe('Socket.IO Integration', () => {
 describe('Push Notification Integration', () => {
   test('should send push notification when order is assigned', async () => {
     const { getMessaging } = require('../config/firebase');
+    // Ensure only the online vendor presence exists so notifications target the expected vendor
+    await VendorPresence.deleteMany({ vendorId: { $ne: onlineVendor._id } });
     
     const response = await request(app)
       .post('/api/dev/orders/mock')
@@ -238,6 +256,8 @@ describe('Push Notification Integration', () => {
       fcmTokens: [],
     });
 
+    // Ensure presence for the no-token vendor exists and remove other presences
+    await VendorPresence.deleteMany({ vendorId: { $ne: noTokenVendor._id } });
     await VendorPresence.create({
       vendorId: noTokenVendor._id,
       online: true,

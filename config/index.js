@@ -23,6 +23,10 @@ module.exports = {
   // Mock order endpoint configuration (dev-only)
   enableMockOrders: process.env.ENABLE_MOCK_ORDERS === 'true',
   mockOrdersSecret: process.env.MOCK_ORDERS_SECRET || '',
+
+  // Work types feature flag. Set to 'true' to enable `/api/work-types` endpoint.
+  // Default: false (disabled). To enable, set environment variable ENABLE_WORK_TYPES=true
+  enableWorkTypes: process.env.ENABLE_WORK_TYPES === 'true',
   
   // Socket.IO configuration
   enableSocketIO: process.env.ENABLE_SOCKET_IO === 'true',

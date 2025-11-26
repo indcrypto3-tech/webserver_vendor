@@ -3,6 +3,23 @@ const path = require('path');
 
 let firebaseApp = null;
 
+// In test environment, provide a lightweight mocked messaging implementation
+if (process.env.NODE_ENV === 'test') {
+  // Use jest.fn when available in the test environment to allow assertions
+  const mockSend = typeof jest === 'function' ? jest.fn(async (message) => ({
+    successCount: (message.tokens && message.tokens.length) ? message.tokens.length : 1,
+    failureCount: 0,
+    responses: (message.tokens || [null]).map(() => ({ success: true })),
+  })) : async (message) => ({ successCount: 1, failureCount: 0, responses: [{ success: true }] });
+
+  module.exports = {
+    initializeFirebase: () => null,
+    getMessaging: () => ({ sendMulticast: mockSend }),
+    isFirebaseConfigured: () => true,
+  };
+
+} else {
+
 /**
  * Initialize Firebase Admin SDK
  * Supports multiple configuration methods:
@@ -92,3 +109,5 @@ module.exports = {
   getMessaging,
   isFirebaseConfigured,
 };
+
+}

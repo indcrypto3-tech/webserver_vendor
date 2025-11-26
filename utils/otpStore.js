@@ -86,8 +86,11 @@ function cleanupExpiredOtps() {
   }
 }
 
-// Run cleanup every 10 minutes
-setInterval(cleanupExpiredOtps, 10 * 60 * 1000);
+// Run cleanup every 10 minutes (skip the interval during tests to avoid
+// keeping the Node.js event loop alive and blocking Jest from exiting)
+if (process.env.NODE_ENV !== 'test') {
+  setInterval(cleanupExpiredOtps, 10 * 60 * 1000);
+}
 
 module.exports = {
   sendOtp,

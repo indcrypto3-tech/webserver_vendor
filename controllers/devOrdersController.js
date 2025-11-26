@@ -69,13 +69,17 @@ async function createMockOrder(req, res) {
     }, requestMetadata);
 
     // Return response with idempotency information
+    // Keep legacy shape where `data` is the order object, but also include `data.order` for newer clients/tests
+    const orderJson = result.order.toPublicJSON();
     const responseData = {
       ok: true,
-      data: result.order.toPublicJSON(),
+      data: Object.assign({}, orderJson, { order: orderJson }),
     };
 
     if (result.isIdempotent) {
+      // Place idempotent flag both at top-level and inside data for different consumer expectations
       responseData.idempotent = true;
+      responseData.data.idempotent = true;
       responseData.message = 'Order already exists (idempotent request)';
       responseData.originalCallTimestamp = result.originalCallTimestamp;
       return res.status(200).json(responseData);

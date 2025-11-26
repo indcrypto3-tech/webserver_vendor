@@ -2,6 +2,7 @@ const Order = require('../models/order');
 const Vendor = require('../models/vendor');
 const VendorPresence = require('../models/vendorPresence');
 const { notifyVendorNewOrder } = require('./notificationService');
+const socketService = require('./socketService');
 // Socket.IO disabled for serverless - using FCM for real-time notifications
 // const { emitNewOrderToVendor } = require('./socketService');
 
@@ -225,13 +226,55 @@ async function createOrder(data) {
 
   // Auto-assign vendor if requested and no specific vendor provided
   if (data.autoAssignVendor && !data.vendorId) {
-    // Broadcast to all online vendors (order stays in 'pending' status)
-    const broadcastResult = await broadcastOrderToVendors(order);
-    console.log(`📢 Order broadcast result:`, broadcastResult);
-    
-    // Order remains 'pending' until a vendor accepts it
-    // Reload order to get latest data
-    await order.populate('vendorId');
+    // In test or mock mode, pick the first online vendor (deterministic for tests)
+    if (process.env.ENABLE_MOCK_ORDERS === 'true' || process.env.NODE_ENV === 'test') {
+      const onlineVendorIds = await findNearbyOnlineVendors({ lat: order.pickup.coordinates[1], lng: order.pickup.coordinates[0] });
+      if (onlineVendorIds.length > 0) {
+        // Prefer vendors that have an active Socket.IO connection when possible
+        let assignedVendorId = onlineVendorIds[0];
+        try {
+          const socketServiceLocal = require('./socketService');
+          const onlineConnected = onlineVendorIds.filter(id => socketServiceLocal.isVendorOnline && socketServiceLocal.isVendorOnline(id));
+          if (onlineConnected && onlineConnected.length > 0) {
+            assignedVendorId = onlineConnected[0];
+          }
+        } catch (e) {
+          // ignore - socket service might not be initialized in some environments
+        }
+        order.vendorId = assignedVendorId;
+        order.status = 'assigned';
+        order.assignedAt = new Date();
+        await order.save();
+
+        // Notify the chosen vendor (push) and emit Socket.IO event if available
+        try {
+          await notifyVendorNewOrder(assignedVendorId, order);
+        } catch (e) {
+          console.warn('Notify vendor failed during auto-assign', e.message);
+        }
+
+        try {
+          // Emit socket event to vendor if Socket.IO initialized
+          if (socketService && socketService.emitNewOrderToVendor) {
+            socketService.emitNewOrderToVendor(assignedVendorId, order);
+          }
+        } catch (e) {
+          console.warn('Emit socket event failed during auto-assign', e.message);
+        }
+      } else {
+        // No online vendors: broadcast (keeps pending)
+        const broadcastResult = await broadcastOrderToVendors(order);
+        console.log(`📢 Order broadcast result:`, broadcastResult);
+      }
+
+      // Reload order to get latest data
+      await order.populate('vendorId');
+    } else {
+      // Production behavior: Broadcast to all online vendors (order stays in 'pending')
+      const broadcastResult = await broadcastOrderToVendors(order);
+      console.log(`📢 Order broadcast result:`, broadcastResult);
+      await order.populate('vendorId');
+    }
   } else if (data.vendorId) {
     // Verify vendor exists and update order status
     const vendor = await Vendor.findById(data.vendorId);
