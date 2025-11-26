@@ -386,8 +386,8 @@ async function updateFare(req, res) {
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ ok: false, error: 'order_not_found', message: 'Order not found' });
 
-    // Only allow updates for non-finalized orders
-    if (['completed', 'cancelled', 'payment_confirmed'].includes(order.status)) {
+    // Only disallow updating fare when order is paid. other statuses are allowed.
+    if (order.status === 'paid') {
       return res.status(400).json({ ok: false, error: 'cannot_modify_fare', message: `Cannot modify fare when order status is ${order.status}` });
     }
 
