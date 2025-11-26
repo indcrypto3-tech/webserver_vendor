@@ -276,19 +276,23 @@ async function paymentRequest(req, res) {
   info(buildBase({ requestId: rid, route: '/api/orders/:id/payment-request', method: 'POST', vendorId, orderId }), 'Payment request');
 
   try {
-    // Validate amount
-    if (!validateAmount(amount)) {
-      return res.status(400).json({ ok: false, error: 'invalid_amount', message: 'Amount must be a positive number' });
-    }
-
     // Find order
     const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ ok: false, error: 'order_not_found', message: 'Order not found' });
     }
 
-    // Create payment request
-    const paymentReq = createPaymentRequest({ amount, currency, notes });
+    // If client didn't provide `amount`, use the canonical order fare so vendors
+    // can update the order fare first and then create a payment request.
+    const finalAmount = (amount === undefined || amount === null) ? order.fare : amount;
+
+    // Validate amount (either provided or derived from order.fare)
+    if (!validateAmount(finalAmount)) {
+      return res.status(400).json({ ok: false, error: 'invalid_amount', message: 'Amount must be a positive number' });
+    }
+
+    // Create payment request using the final resolved amount
+    const paymentReq = createPaymentRequest({ amount: finalAmount, currency, notes });
 
     // If autoConfirm is enabled (dev/test mode)
     if (autoConfirm) {
