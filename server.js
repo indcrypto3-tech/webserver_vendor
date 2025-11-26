@@ -16,6 +16,7 @@ const vendorLocationRoutes = require('./routes/vendorLocation');
 const presenceRoutes = require('./routes/presence');
 const orderRoutes = require('./routes/orders');
 const earningsRoutes = require('./routes/earnings');
+const proxyRoutes = require('./routes/proxy');
 const { seedWorkTypes } = require('./controllers/workTypesController');
 
 // Initialize Express app
@@ -71,6 +72,7 @@ if (config.enableWorkTypes) {
 }
 app.use('/api/orders', orderRoutes); // Order management routes
 app.use('/api/earnings', earningsRoutes); // Earnings endpoints
+app.use('/api/proxy', proxyRoutes); // Backend-to-backend proxy endpoints
 // Vendor location endpoint mounted at /api/vendor/location
 app.use('/api/vendor', vendorLocationRoutes);
 

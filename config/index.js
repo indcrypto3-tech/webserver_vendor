@@ -31,6 +31,9 @@ module.exports = {
   // Socket.IO configuration
   enableSocketIO: process.env.ENABLE_SOCKET_IO === 'true',
   socketCorsOrigin: process.env.SOCKET_CORS_ORIGIN || '*',
+
+  // Internal API key for backend-to-backend proxy (keep secret)
+  internalApiKey: process.env.INTERNAL_API_KEY || 'dev-internal-key',
   
   // Firebase Cloud Messaging configuration
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID || '',
