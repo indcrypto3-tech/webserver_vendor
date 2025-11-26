@@ -15,6 +15,7 @@ const workTypesRoutes = require('./routes/workTypes');
 const vendorLocationRoutes = require('./routes/vendorLocation');
 const presenceRoutes = require('./routes/presence');
 const orderRoutes = require('./routes/orders');
+const earningsRoutes = require('./routes/earnings');
 const { seedWorkTypes } = require('./controllers/workTypesController');
 
 // Initialize Express app
@@ -69,6 +70,7 @@ if (config.enableWorkTypes) {
   console.log('ℹ️  Work-types API disabled (set ENABLE_WORK_TYPES=true to enable)');
 }
 app.use('/api/orders', orderRoutes); // Order management routes
+app.use('/api/earnings', earningsRoutes); // Earnings endpoints
 // Vendor location endpoint mounted at /api/vendor/location
 app.use('/api/vendor', vendorLocationRoutes);
 
