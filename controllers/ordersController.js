@@ -400,6 +400,9 @@ async function requestOTP(req, res) {
     // Save OTP to order
     await Order.findByIdAndUpdate(orderId, { $set: { otp: otpObject } });
 
+    // Log OTP for development/debugging (always log regardless of sending status)
+    info(buildBase({ requestId: rid, vendorId, orderId, otpId: otpObject.otpId, purpose }), `OTP generated: ${otpCode} (expires: ${otpObject.expiresAt})`);
+
     // Send OTP (FCM fallback since SMS not configured)
     let sent = false;
     if (order.customerId) {
@@ -411,10 +414,12 @@ async function requestOTP(req, res) {
           expiresAt: otpObject.expiresAt,
         });
         sent = true;
-        info(buildBase({ requestId: rid, vendorId, orderId, customerId: order.customerId }), `OTP sent to customer: ${otpCode} (expires: ${otpObject.expiresAt})`);
+        info(buildBase({ requestId: rid, vendorId, orderId, customerId: order.customerId }), `OTP sent to customer via FCM`);
       } catch (err) {
-        warn(buildBase({ requestId: rid, vendorId, orderId }), 'Failed to send OTP notification', err.message);
+        warn(buildBase({ requestId: rid, vendorId, orderId }), 'Failed to send OTP notification to customer', err.message);
       }
+    } else {
+      warn(buildBase({ requestId: rid, vendorId, orderId }), 'No customerId found - OTP not sent to customer');
     }
 
     info(buildBase({ requestId: rid, vendorId, orderId, otpId: otpObject.otpId, purpose }), 'OTP created');
