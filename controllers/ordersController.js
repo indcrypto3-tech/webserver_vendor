@@ -421,6 +421,51 @@ async function updatePaymentRequest(req, res) {
 }
 
 /**
+ * PATCH /api/orders/:orderId/fare
+ * Allow vendor to update order fare before creating a payment request
+ */
+async function updateFare(req, res) {
+  const rid = req.requestId;
+  const vendorId = req.user && req.user._id;
+  const { orderId } = req.params;
+  const { amount } = req.body || {};
+
+  info(buildBase({ requestId: rid, route: '/api/orders/:id/fare', method: 'PATCH', vendorId, orderId }), 'Update order fare');
+
+  try {
+    if (amount === undefined) {
+      return res.status(400).json({ ok: false, error: 'missing_amount', message: 'Amount is required' });
+    }
+
+    if (!validateAmount(amount)) {
+      return res.status(400).json({ ok: false, error: 'invalid_amount', message: 'Amount must be a positive number' });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ ok: false, error: 'order_not_found', message: 'Order not found' });
+
+    // Only allow updates for non-finalized orders
+    if (['completed', 'cancelled', 'payment_confirmed'].includes(order.status)) {
+      return res.status(400).json({ ok: false, error: 'cannot_modify_fare', message: `Cannot modify fare when order status is ${order.status}` });
+    }
+
+    // If order has a vendor assigned, only that vendor may update fare
+    if (order.vendorId && vendorId && order.vendorId.toString() !== vendorId.toString()) {
+      return res.status(403).json({ ok: false, error: 'forbidden', message: 'Not authorized to modify fare for this order' });
+    }
+
+    const updated = await Order.findByIdAndUpdate(orderId, { $set: { fare: amount } }, { new: true });
+
+    info(buildBase({ requestId: rid, vendorId, orderId }), `Order fare updated to ${amount}`);
+
+    return res.status(200).json({ ok: true, fare: updated.fare });
+  } catch (err) {
+    error(buildBase({ requestId: rid, route: '/api/orders/:id/fare', method: 'PATCH', vendorId, orderId }), 'Update fare error', err.stack);
+    return res.status(500).json({ requestId: rid, message: 'Internal server error' });
+  }
+}
+
+/**
  * POST /api/orders/:orderId/request-otp
  * Generate and send OTP for arrival or completion verification
  */
@@ -635,4 +680,5 @@ module.exports = {
   requestOTP,
   verifyOTPEndpoint,
   updatePaymentRequest,
+  updateFare,
 };
