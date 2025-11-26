@@ -15,6 +15,10 @@ async function getSummary(req, res) {
   }
 
   if (!vendorId) {
+    const meta = buildBase({ requestId: rid, route: '/api/earnings/summary', method: 'GET' });
+    // Log authorization header presence and length (do not log token itself)
+    const authHeader = req.headers && req.headers.authorization;
+    error({ ...meta, authPresent: !!authHeader, authLen: authHeader ? String(authHeader).length : 0 }, 'Unauthorized: vendorId missing');
     return res.status(401).json({ ok: false, error: 'unauthorized', message: 'Vendor ID not found' });
   }
 
@@ -59,6 +63,9 @@ async function getHistory(req, res) {
   }
 
   if (!vendorId) {
+    const meta = buildBase({ requestId: rid, route: '/api/earnings/history', method: 'GET' });
+    const authHeader = req.headers && req.headers.authorization;
+    error({ ...meta, authPresent: !!authHeader, authLen: authHeader ? String(authHeader).length : 0 }, 'Unauthorized: vendorId missing');
     return res.status(401).json({ ok: false, error: 'unauthorized', message: 'Vendor ID not found' });
   }
 

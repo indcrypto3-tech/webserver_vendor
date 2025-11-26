@@ -3,6 +3,7 @@
 # Dependencies
 node_modules/
 patches/
+scripts/
 
 .gitignore
 # Environment variables

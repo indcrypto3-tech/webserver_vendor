@@ -1,5 +1,6 @@
 const { verifyToken } = require('../utils/jwt');
 const Vendor = require('../models/vendor');
+const { buildBase, error, info } = require('../utils/logger');
 
 /**
  * Authentication middleware to protect routes
@@ -15,6 +16,9 @@ async function authenticate(req, res, next) {
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // Log missing or malformed header
+      const meta = buildBase({ route: req.path, method: req.method });
+      error({ ...meta }, 'Authorization header missing or malformed');
       return res.status(401).json({ message: 'Authorization token required' });
     }
 
@@ -23,6 +27,8 @@ async function authenticate(req, res, next) {
     // Verify token
     const decoded = verifyToken(token);
     if (!decoded) {
+      const meta = buildBase({ route: req.path, method: req.method });
+      error({ ...meta }, 'Token verification failed');
       return res.status(401).json({ message: 'Invalid or expired token' });
     }
 
@@ -30,11 +36,19 @@ async function authenticate(req, res, next) {
     if (decoded.vendorId) {
       const vendor = await Vendor.findById(decoded.vendorId);
       if (!vendor) {
+        const meta = buildBase({ route: req.path, method: req.method, vendorId: decoded.vendorId });
+        error({ ...meta }, 'Vendor not found for token vendorId');
         return res.status(401).json({ message: 'Vendor not found' });
       }
+      // Log successful authentication
+      const meta = buildBase({ route: req.path, method: req.method, vendorId: vendor._id });
+      info({ ...meta }, 'Authenticated vendor via token');
       req.user = vendor;
     } else if (decoded.mobile) {
       // Token only contains mobile (pre-registration state)
+      // Log pre-registration token usage
+      const meta = buildBase({ route: req.path, method: req.method, vendorId: null });
+      info({ ...meta, mobile: decoded.mobile }, 'Authenticated pre-registration mobile token');
       req.user = { mobile: decoded.mobile, isPreRegistration: true };
     } else {
       return res.status(401).json({ message: 'Invalid token payload' });
