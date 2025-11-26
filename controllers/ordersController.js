@@ -271,7 +271,7 @@ async function paymentRequest(req, res) {
   const rid = req.requestId;
   const vendorId = req.user && req.user._id;
   const { orderId } = req.params;
-  const { amount, currency = 'INR', notes = '', autoConfirm = false } = req.body;
+  const { amount, currency = 'INR', autoConfirm = false } = req.body;
 
   info(buildBase({ requestId: rid, route: '/api/orders/:id/payment-request', method: 'POST', vendorId, orderId }), 'Payment request');
 
@@ -291,8 +291,8 @@ async function paymentRequest(req, res) {
       return res.status(400).json({ ok: false, error: 'invalid_amount', message: 'Amount must be a positive number' });
     }
 
-    // Create payment request using the final resolved amount
-    const paymentReq = createPaymentRequest({ amount: finalAmount, currency, notes });
+    // Create payment request using the final resolved amount (notes are not used per new workflow)
+    const paymentReq = createPaymentRequest({ amount: finalAmount, currency });
 
     // If autoConfirm is enabled (dev/test mode)
     if (autoConfirm) {
@@ -358,67 +358,9 @@ async function paymentRequest(req, res) {
   }
 }
 
-/**
- * PATCH /api/orders/:orderId/payment-requests/:paymentRequestId
- * Allow vendor to update amount or notes for a payment request while it's still 'requested'
- */
-async function updatePaymentRequest(req, res) {
-  const rid = req.requestId;
-  const vendorId = req.user && req.user._id;
-  const { orderId, paymentRequestId } = req.params;
-  const { amount, notes, applyToFare = false } = req.body || {};
-
-  info(buildBase({ requestId: rid, route: '/api/orders/:id/payment-requests/:paymentRequestId', method: 'PATCH', vendorId, orderId, paymentRequestId }), 'Update payment request');
-
-  try {
-    // Validate amount if provided
-    if (amount !== undefined && !validateAmount(amount)) {
-      return res.status(400).json({ ok: false, error: 'invalid_amount', message: 'Amount must be a positive number' });
-    }
-
-    // Ensure order exists
-    const order = await Order.findById(orderId);
-    if (!order) return res.status(404).json({ ok: false, error: 'order_not_found', message: 'Order not found' });
-
-    // Find payment request
-    const pr = (order.paymentRequests || []).find(p => p.id === paymentRequestId);
-    if (!pr) return res.status(404).json({ ok: false, error: 'payment_request_not_found', message: 'Payment request not found' });
-
-    // Only allow updates when still requested
-    if (pr.status !== 'requested') {
-      return res.status(400).json({ ok: false, error: 'cannot_modify_payment', message: 'Only payment requests with status "requested" can be modified' });
-    }
-
-    // Build update
-    const setObj = {};
-    if (amount !== undefined) setObj['paymentRequests.$.amount'] = amount;
-    if (notes !== undefined) setObj['paymentRequests.$.notes'] = notes;
-    if (applyToFare && amount !== undefined) setObj['fare'] = amount;
-
-    if (Object.keys(setObj).length === 0) {
-      return res.status(400).json({ ok: false, error: 'nothing_to_update', message: 'No updatable fields provided' });
-    }
-
-    const updated = await Order.findOneAndUpdate(
-      { _id: orderId, 'paymentRequests.id': paymentRequestId, 'paymentRequests.status': 'requested' },
-      { $set: setObj },
-      { new: true }
-    );
-
-    if (!updated) {
-      return res.status(409).json({ ok: false, error: 'update_conflict', message: 'Payment request update conflict or not allowed' });
-    }
-
-    const updatedPr = (updated.paymentRequests || []).find(p => p.id === paymentRequestId);
-
-    info(buildBase({ requestId: rid, vendorId, orderId, paymentRequestId }), 'Payment request updated');
-
-    return res.status(200).json({ ok: true, paymentRequest: updatedPr, orderFare: updated.fare });
-  } catch (err) {
-    error(buildBase({ requestId: rid, route: '/api/orders/:id/payment-requests/:paymentRequestId', method: 'PATCH', vendorId, orderId, paymentRequestId }), 'Update payment request error', err.stack);
-    return res.status(500).json({ requestId: rid, message: 'Internal server error' });
-  }
-}
+// PATCH /api/orders/:orderId/payment-requests/:paymentRequestId removed
+// Per the new workflow vendors should update order fare via PATCH /api/orders/:orderId/fare
+// and then create a payment request. Editing a payment request after creation is deprecated.
 
 /**
  * PATCH /api/orders/:orderId/fare
@@ -679,6 +621,5 @@ module.exports = {
   paymentRequest,
   requestOTP,
   verifyOTPEndpoint,
-  updatePaymentRequest,
   updateFare,
 };

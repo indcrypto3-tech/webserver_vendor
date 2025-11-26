@@ -29,8 +29,8 @@ router.post('/:orderId/payment-request', authMiddleware, (req, res) => ordersCon
 router.post('/:orderId/request-otp', authMiddleware, (req, res) => ordersController.requestOTP(req, res));
 router.post('/:orderId/verify-otp', authMiddleware, (req, res) => ordersController.verifyOTPEndpoint(req, res));
 
-// Update a payment request (amount/notes) - vendor may adjust before confirmation
-router.patch('/:orderId/payment-requests/:paymentRequestId', authMiddleware, (req, res) => ordersController.updatePaymentRequest(req, res));
+// Deprecated: per new workflow vendors should update order fare via PATCH /:orderId/fare
+// and then create a payment request. The per-request PATCH endpoint has been removed.
 
 // Update order fare (vendor can adjust price before creating payment request)
 router.patch('/:orderId/fare', authMiddleware, (req, res) => ordersController.updateFare(req, res));
