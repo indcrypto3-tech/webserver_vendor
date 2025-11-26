@@ -29,4 +29,6 @@ router.post('/:orderId/payment-request', authMiddleware, (req, res) => ordersCon
 router.post('/:orderId/request-otp', authMiddleware, (req, res) => ordersController.requestOTP(req, res));
 router.post('/:orderId/verify-otp', authMiddleware, (req, res) => ordersController.verifyOTPEndpoint(req, res));
 
+// Update a payment request (amount/notes) - vendor may adjust before confirmation
+router.patch('/:orderId/payment-requests/:paymentRequestId', authMiddleware, (req, res) => ordersController.updatePaymentRequest(req, res));
 module.exports = router;
