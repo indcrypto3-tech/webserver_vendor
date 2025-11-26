@@ -98,7 +98,17 @@ const orderSchema = new mongoose.Schema({
   // Order status
   status: {
     type: String,
-    enum: ['pending', 'assigned', 'accepted', 'in_progress', 'completed', 'cancelled'],
+    enum: [
+      'pending',
+      'assigned',
+      'accepted',
+      'in_progress',
+      'payment_requested',
+      'payment_confirmed',
+      'arrival_confirmed',
+      'completed',
+      'cancelled'
+    ],
     default: 'pending',
     index: true,
   },
@@ -153,6 +163,79 @@ const orderSchema = new mongoose.Schema({
     default: '',
   },
 
+  // Payment requests (Module 3)
+  paymentRequests: [
+    {
+      id: {
+        type: String,
+        required: true,
+      },
+      amount: {
+        type: Number,
+        required: true,
+        min: 0,
+      },
+      currency: {
+        type: String,
+        default: 'INR',
+      },
+      notes: {
+        type: String,
+        default: '',
+      },
+      status: {
+        type: String,
+        enum: ['requested', 'confirmed', 'rejected'],
+        default: 'requested',
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+      confirmedAt: {
+        type: Date,
+        default: null,
+      },
+      meta: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {},
+      },
+    },
+  ],
+
+  // OTP for arrival/completion verification (Module 3)
+  otp: {
+    otpId: {
+      type: String,
+      default: null,
+    },
+    codeHash: {
+      type: String,
+      default: null,
+    },
+    purpose: {
+      type: String,
+      enum: ['arrival', 'completion'],
+      default: null,
+    },
+    createdAt: {
+      type: Date,
+      default: null,
+    },
+    expiresAt: {
+      type: Date,
+      default: null,
+    },
+    attempts: {
+      type: Number,
+      default: 0,
+    },
+    verified: {
+      type: Boolean,
+      default: false,
+    },
+  },
+
   // Metadata
   metadata: {
     type: mongoose.Schema.Types.Mixed,
@@ -205,6 +288,15 @@ orderSchema.methods.toPublicJSON = function() {
     cancelledBy: this.cancelledBy,
     customerNotes: this.customerNotes,
     vendorNotes: this.vendorNotes,
+    paymentRequests: this.paymentRequests,
+    otp: this.otp && this.otp.otpId ? {
+      otpId: this.otp.otpId,
+      purpose: this.otp.purpose,
+      createdAt: this.otp.createdAt,
+      expiresAt: this.otp.expiresAt,
+      verified: this.otp.verified,
+      attempts: this.otp.attempts,
+    } : null,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
     metadata: this.metadata,

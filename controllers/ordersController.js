@@ -2,6 +2,8 @@ const { buildBase, info, warn, error } = require('../utils/logger');
 const ordersService = require('../services/ordersService');
 const notificationService = require('../services/notificationService');
 const Order = require('../models/order');
+const { createPaymentRequest, confirmPaymentRequest, validateAmount } = require('../utils/payment');
+const { generateOTP, createOTP, verifyOTP, isOTPExpired, hasTooManyAttempts } = require('../utils/otpHelper');
 
 // Helper: normalize order to Flutter shape for list
 function mapOrderForList(order) {
@@ -261,6 +263,294 @@ async function cancelOrder(req, res) {
   }
 }
 
+/**
+ * POST /api/orders/:orderId/payment-request
+ * Create a payment request for an order
+ */
+async function paymentRequest(req, res) {
+  const rid = req.requestId;
+  const vendorId = req.user && req.user._id;
+  const { orderId } = req.params;
+  const { amount, currency = 'INR', notes = '', autoConfirm = false } = req.body;
+
+  info(buildBase({ requestId: rid, route: '/api/orders/:id/payment-request', method: 'POST', vendorId, orderId }), 'Payment request');
+
+  try {
+    // Validate amount
+    if (!validateAmount(amount)) {
+      return res.status(400).json({ ok: false, error: 'invalid_amount', message: 'Amount must be a positive number' });
+    }
+
+    // Find order
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ ok: false, error: 'order_not_found', message: 'Order not found' });
+    }
+
+    // Create payment request
+    const paymentReq = createPaymentRequest({ amount, currency, notes });
+
+    // If autoConfirm is enabled (dev/test mode)
+    if (autoConfirm) {
+      const confirmedPaymentReq = confirmPaymentRequest(paymentReq);
+
+      // Atomically add confirmed payment request and update status
+      const updated = await Order.findByIdAndUpdate(
+        orderId,
+        {
+          $push: { paymentRequests: confirmedPaymentReq },
+          $set: { status: 'payment_confirmed' },
+        },
+        { new: true }
+      );
+
+      // Send FCM to vendor
+      if (updated.vendorId) {
+        try {
+          await notificationService.sendPushToVendor(updated.vendorId, {
+            title: 'Payment Confirmed',
+            body: `Payment request ${confirmedPaymentReq.id} auto-confirmed for order ${orderId}`,
+            data: {
+              orderId: orderId.toString(),
+              paymentRequestId: confirmedPaymentReq.id,
+              status: 'payment_confirmed',
+              amount: confirmedPaymentReq.amount.toString(),
+            },
+          });
+        } catch (err) {
+          warn(buildBase({ requestId: rid, vendorId, orderId }), 'Failed to send FCM for auto-confirmed payment', err.message);
+        }
+      }
+
+      info(buildBase({ requestId: rid, vendorId, orderId, paymentRequestId: confirmedPaymentReq.id }), 'Payment auto-confirmed');
+
+      return res.status(200).json({
+        ok: true,
+        paymentRequestId: confirmedPaymentReq.id,
+        autoConfirmed: true,
+        paymentRequest: confirmedPaymentReq,
+      });
+    }
+
+    // Normal flow: add payment request and update status to payment_requested
+    const updated = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        $push: { paymentRequests: paymentReq },
+        $set: { status: 'payment_requested' },
+      },
+      { new: true }
+    );
+
+    info(buildBase({ requestId: rid, vendorId, orderId, paymentRequestId: paymentReq.id }), 'Payment request created');
+
+    return res.status(200).json({
+      ok: true,
+      paymentRequestId: paymentReq.id,
+    });
+  } catch (err) {
+    error(buildBase({ requestId: rid, route: '/api/orders/:id/payment-request', method: 'POST', vendorId, orderId }), 'Payment request error', err.stack);
+    return res.status(500).json({ requestId: rid, message: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /api/orders/:orderId/request-otp
+ * Generate and send OTP for arrival or completion verification
+ */
+async function requestOTP(req, res) {
+  const rid = req.requestId;
+  const vendorId = req.user && req.user._id;
+  const { orderId } = req.params;
+  const { purpose = 'arrival', ttlSeconds = 300 } = req.body;
+
+  info(buildBase({ requestId: rid, route: '/api/orders/:id/request-otp', method: 'POST', vendorId, orderId, purpose }), 'Request OTP');
+
+  try {
+    // Validate purpose
+    if (!['arrival', 'completion'].includes(purpose)) {
+      return res.status(400).json({ ok: false, error: 'invalid_purpose', message: 'Purpose must be "arrival" or "completion"' });
+    }
+
+    // Find order
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ ok: false, error: 'order_not_found', message: 'Order not found' });
+    }
+
+    // Check if previous OTP exists and is still valid (and not already verified)
+    // Allow override if verified or expired
+    if (order.otp && order.otp.otpId && !isOTPExpired(order.otp) && !order.otp.verified) {
+      // Allow requesting a new OTP with different purpose (overrides existing)
+      // Only block if same purpose
+      if (order.otp.purpose === purpose) {
+        return res.status(429).json({
+          ok: false,
+          error: 'otp_already_sent',
+          message: 'An OTP is already active for this order',
+          expiresAt: order.otp.expiresAt,
+        });
+      }
+    }
+
+    // Generate OTP
+    const otpCode = generateOTP();
+    const otpObject = await createOTP({ code: otpCode, purpose, ttlSeconds });
+
+    // Save OTP to order
+    await Order.findByIdAndUpdate(orderId, { $set: { otp: otpObject } });
+
+    // Send OTP (FCM fallback since SMS not configured)
+    let sent = false;
+    if (order.customerId) {
+      try {
+        // In production, this would send SMS. For now, use FCM as fallback
+        await notificationService.notifyCustomerOrderStatusUpdate(order.customerId, order, 'otp_sent', {
+          otpCode: process.env.NODE_ENV === 'production' ? undefined : otpCode, // Don't send in prod
+          purpose,
+          expiresAt: otpObject.expiresAt,
+        });
+        sent = true;
+      } catch (err) {
+        warn(buildBase({ requestId: rid, vendorId, orderId }), 'Failed to send OTP notification', err.message);
+      }
+    }
+
+    info(buildBase({ requestId: rid, vendorId, orderId, otpId: otpObject.otpId, purpose }), 'OTP created');
+
+    // In non-production, return OTP code for dev/test automation
+    const response = {
+      ok: true,
+      otpId: otpObject.otpId,
+      sent,
+    };
+
+    if (process.env.NODE_ENV !== 'production') {
+      response.devCode = otpCode;
+    }
+
+    return res.status(200).json(response);
+  } catch (err) {
+    error(buildBase({ requestId: rid, route: '/api/orders/:id/request-otp', method: 'POST', vendorId, orderId }), 'Request OTP error', err.stack);
+    return res.status(500).json({ requestId: rid, message: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /api/orders/:orderId/verify-otp
+ * Verify OTP and update order status accordingly
+ */
+async function verifyOTPEndpoint(req, res) {
+  const rid = req.requestId;
+  const vendorId = req.user && req.user._id;
+  const { orderId } = req.params;
+  const { otp, purpose } = req.body;
+
+  info(buildBase({ requestId: rid, route: '/api/orders/:id/verify-otp', method: 'POST', vendorId, orderId, purpose }), 'Verify OTP');
+
+  try {
+    // Validate input
+    if (!otp || typeof otp !== 'string') {
+      return res.status(400).json({ ok: false, error: 'invalid_otp', message: 'OTP is required' });
+    }
+
+    if (!purpose || !['arrival', 'completion'].includes(purpose)) {
+      return res.status(400).json({ ok: false, error: 'invalid_purpose', message: 'Purpose must be "arrival" or "completion"' });
+    }
+
+    // Find order
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ ok: false, error: 'order_not_found', message: 'Order not found' });
+    }
+
+    // Check if OTP exists
+    if (!order.otp || !order.otp.otpId || !order.otp.codeHash) {
+      return res.status(400).json({ ok: false, error: 'no_otp', message: 'No OTP found for this order' });
+    }
+
+    // Check if purpose matches
+    if (order.otp.purpose !== purpose) {
+      return res.status(400).json({ ok: false, error: 'purpose_mismatch', message: `OTP purpose is ${order.otp.purpose}, not ${purpose}` });
+    }
+
+    // Check if expired
+    if (isOTPExpired(order.otp)) {
+      return res.status(410).json({ ok: false, error: 'otp_expired', message: 'OTP has expired' });
+    }
+
+    // Check if too many attempts
+    if (hasTooManyAttempts(order.otp, 5)) {
+      return res.status(429).json({ ok: false, error: 'too_many_attempts', message: 'Too many failed attempts' });
+    }
+
+    // Verify OTP
+    const isValid = await verifyOTP(otp, order.otp.codeHash);
+
+    if (!isValid) {
+      // Increment attempts
+      await Order.findByIdAndUpdate(orderId, { $inc: { 'otp.attempts': 1 } });
+
+      warn(buildBase({ requestId: rid, vendorId, orderId }), 'Invalid OTP attempt');
+
+      return res.status(401).json({ ok: false, error: 'invalid_otp', message: 'Invalid OTP code' });
+    }
+
+    // OTP is valid - update order status based on purpose
+    let newStatus;
+    switch (purpose) {
+      case 'arrival':
+        newStatus = 'arrival_confirmed';
+        break;
+      case 'completion':
+        newStatus = 'completed';
+        break;
+      default:
+        newStatus = 'in_progress';
+    }
+
+    const updated = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        $set: {
+          'otp.verified': true,
+          status: newStatus,
+          ...(newStatus === 'completed' && { completedAt: new Date() }),
+        },
+      },
+      { new: true }
+    );
+
+    // Send FCM to vendor
+    if (updated.vendorId) {
+      try {
+        await notificationService.sendPushToVendor(updated.vendorId, {
+          title: 'OTP Verified',
+          body: `Order ${orderId} status updated to ${newStatus}`,
+          data: {
+            orderId: orderId.toString(),
+            status: newStatus,
+            purpose,
+          },
+        });
+      } catch (err) {
+        warn(buildBase({ requestId: rid, vendorId, orderId }), 'Failed to send FCM for OTP verification', err.message);
+      }
+    }
+
+    info(buildBase({ requestId: rid, vendorId, orderId, newStatus }), 'OTP verified successfully');
+
+    return res.status(200).json({
+      ok: true,
+      verified: true,
+      status: newStatus,
+    });
+  } catch (err) {
+    error(buildBase({ requestId: rid, route: '/api/orders/:id/verify-otp', method: 'POST', vendorId, orderId }), 'Verify OTP error', err.stack);
+    return res.status(500).json({ requestId: rid, message: 'Internal server error' });
+  }
+}
+
 module.exports = {
   listOrders,
   getOrder,
@@ -269,4 +559,7 @@ module.exports = {
   startOrder,
   completeOrder,
   cancelOrder,
+  paymentRequest,
+  requestOTP,
+  verifyOTPEndpoint,
 };

@@ -400,6 +400,54 @@ Steps:
    - `TOKEN`: (save after verify-otp response)
 3. Test the flow: send-otp → verify-otp → create vendor → get/update vendor
 
+## Module 3: Payment & OTP Features
+
+### Payment Request API
+
+Request payment from customer for additional charges.
+
+```bash
+curl -X POST http://localhost:3000/api/orders/ORDER_ID/payment-request \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 150,
+    "currency": "INR",
+    "notes": "Additional materials",
+    "autoConfirm": false
+  }'
+```
+
+### OTP Verification for Order Completion
+
+**1. Request OTP:**
+```bash
+curl -X POST http://localhost:3000/api/orders/ORDER_ID/request-otp \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "purpose": "arrival",
+    "ttlSeconds": 300
+  }'
+```
+
+**2. Verify OTP:**
+```bash
+curl -X POST http://localhost:3000/api/orders/ORDER_ID/verify-otp \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "otp": "123456",
+    "purpose": "arrival"
+  }'
+```
+
+**Order Status Flow:**
+- `pending` → `assigned` → `accepted` → `in_progress` → `arrival_confirmed` → `completed`
+- New statuses: `payment_requested`, `payment_confirmed`, `arrival_confirmed`
+
+For full Module 3 API documentation, see `patches/structure_server/Server_v3.md`.
+
 ## Troubleshooting
 
 ### MongoDB Connection Error

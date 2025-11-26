@@ -24,4 +24,9 @@ router.post('/:orderId/start', authMiddleware, (req, res) => ordersController.st
 router.post('/:orderId/complete', authMiddleware, (req, res) => ordersController.completeOrder(req, res));
 router.post('/:orderId/cancel', authMiddleware, (req, res) => ordersController.cancelOrder(req, res));
 
+// Module 3: Payment and OTP endpoints
+router.post('/:orderId/payment-request', authMiddleware, (req, res) => ordersController.paymentRequest(req, res));
+router.post('/:orderId/request-otp', authMiddleware, (req, res) => ordersController.requestOTP(req, res));
+router.post('/:orderId/verify-otp', authMiddleware, (req, res) => ordersController.verifyOTPEndpoint(req, res));
+
 module.exports = router;
