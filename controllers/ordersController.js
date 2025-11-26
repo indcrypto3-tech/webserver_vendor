@@ -411,6 +411,7 @@ async function requestOTP(req, res) {
           expiresAt: otpObject.expiresAt,
         });
         sent = true;
+        info(buildBase({ requestId: rid, vendorId, orderId, customerId: order.customerId }), `OTP sent to customer: ${otpCode} (expires: ${otpObject.expiresAt})`);
       } catch (err) {
         warn(buildBase({ requestId: rid, vendorId, orderId }), 'Failed to send OTP notification', err.message);
       }
