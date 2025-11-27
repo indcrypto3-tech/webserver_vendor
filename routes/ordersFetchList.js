@@ -111,7 +111,18 @@ router.get('/fetchlist', authenticate, async (req, res) => {
     const returned = rows.length;
     const remaining = Math.max(0, total - (offset + returned));
 
-    logger.info('fetchlist success', { ...logCtx, total, returned, remaining });
+    // Calculate completed orders for current month
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    
+    const completedThisMonth = await Order.countDocuments({
+      vendorId,
+      status: 'completed',
+      createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+    });
+
+    logger.info('fetchlist success', { ...logCtx, total, returned, remaining, completedThisMonth });
 
     return res.json({
       ok: true,
@@ -119,7 +130,9 @@ router.get('/fetchlist', authenticate, async (req, res) => {
       offset,
       rows,
       returned,
-      remaining
+      remaining,
+      total,
+      completedThisMonth
     });
   } catch (err) {
     logger.error('fetchlist failed', { ...logCtx, error: err.message, stack: err.stack });
@@ -173,7 +186,18 @@ router.get('/fetchlist/vendor/:vendorId', requireServiceAuth, async (req, res) =
     const returned = rows.length;
     const remaining = Math.max(0, total - (offset + returned));
 
-    logger.info('fetchlist proxy success', { ...logCtx, total, returned, remaining });
+    // Calculate completed orders for current month
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    
+    const completedThisMonth = await Order.countDocuments({
+      vendorId,
+      status: 'completed',
+      createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+    });
+
+    logger.info('fetchlist proxy success', { ...logCtx, total, returned, remaining, completedThisMonth });
 
     return res.json({
       ok: true,
@@ -181,7 +205,9 @@ router.get('/fetchlist/vendor/:vendorId', requireServiceAuth, async (req, res) =
       offset,
       rows,
       returned,
-      remaining
+      remaining,
+      total,
+      completedThisMonth
     });
   } catch (err) {
     logger.error('fetchlist proxy failed', { ...logCtx, error: err.message, stack: err.stack });
