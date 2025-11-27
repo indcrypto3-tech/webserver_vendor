@@ -13,6 +13,19 @@ const logger = require('../utils/logger');
 
 const MAX_LIMIT = 200;
 
+// Valid order statuses
+const VALID_STATUSES = [
+  'pending',
+  'assigned',
+  'accepted',
+  'in_progress',
+  'payment_requested',
+  'payment_confirmed',
+  'arrival_confirmed',
+  'completed',
+  'cancelled'
+];
+
 /**
  * Parse pagination params with defaults
  */
@@ -35,6 +48,10 @@ function buildFilter(req, vendorId) {
   const { status, from, to } = req.query;
   
   if (status && status !== 'all') {
+    // Validate status
+    if (!VALID_STATUSES.includes(status)) {
+      throw new Error(`Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`);
+    }
     filter.status = status;
   }
   
