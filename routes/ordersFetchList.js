@@ -99,6 +99,17 @@ router.get('/fetchlist', authenticate, async (req, res) => {
     
     logger.info('fetchlist query', { ...logCtx, limit, offset, filter });
 
+    // Calculate completed orders for current month
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    
+    const completedThisMonth = await Order.countDocuments({
+      vendorId,
+      status: 'completed',
+      createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+    });
+
     // Get total count and paginated results
     const total = await Order.countDocuments(filter);
     const rows = await Order.find(filter)
@@ -111,17 +122,6 @@ router.get('/fetchlist', authenticate, async (req, res) => {
     const returned = rows.length;
     const remaining = Math.max(0, total - (offset + returned));
 
-    // Calculate completed orders for current month
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    
-    const completedThisMonth = await Order.countDocuments({
-      vendorId,
-      status: 'completed',
-      createdAt: { $gte: startOfMonth, $lte: endOfMonth }
-    });
-
     logger.info('fetchlist success', { ...logCtx, total, returned, remaining, completedThisMonth });
 
     return res.json({
@@ -131,7 +131,6 @@ router.get('/fetchlist', authenticate, async (req, res) => {
       rows,
       returned,
       remaining,
-      total,
       completedThisMonth
     });
   } catch (err) {
@@ -175,17 +174,6 @@ router.get('/fetchlist/vendor/:vendorId', requireServiceAuth, async (req, res) =
     
     logger.info('fetchlist proxy query', { ...logCtx, limit, offset, filter });
 
-    const total = await Order.countDocuments(filter);
-    const rows = await Order.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(offset)
-      .limit(limit)
-      .select('_id status createdAt customer fare paymentRequests vendorId')
-      .lean();
-
-    const returned = rows.length;
-    const remaining = Math.max(0, total - (offset + returned));
-
     // Calculate completed orders for current month
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -197,6 +185,17 @@ router.get('/fetchlist/vendor/:vendorId', requireServiceAuth, async (req, res) =
       createdAt: { $gte: startOfMonth, $lte: endOfMonth }
     });
 
+    const total = await Order.countDocuments(filter);
+    const rows = await Order.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(offset)
+      .limit(limit)
+      .select('_id status createdAt customer fare paymentRequests vendorId')
+      .lean();
+
+    const returned = rows.length;
+    const remaining = Math.max(0, total - (offset + returned));
+
     logger.info('fetchlist proxy success', { ...logCtx, total, returned, remaining, completedThisMonth });
 
     return res.json({
@@ -206,7 +205,6 @@ router.get('/fetchlist/vendor/:vendorId', requireServiceAuth, async (req, res) =
       rows,
       returned,
       remaining,
-      total,
       completedThisMonth
     });
   } catch (err) {
