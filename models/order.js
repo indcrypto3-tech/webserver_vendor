@@ -249,6 +249,7 @@ const orderSchema = new mongoose.Schema({
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ vendorId: 1, status: 1 });
+orderSchema.index({ vendorId: 1, createdAt: -1 }); // For fetchlist pagination
 orderSchema.index({ customerId: 1, createdAt: -1 });
 orderSchema.index({ 'pickup.coordinates': '2dsphere' });
 orderSchema.index({ 'drop.coordinates': '2dsphere' });

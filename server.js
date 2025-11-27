@@ -15,6 +15,7 @@ const workTypesRoutes = require('./routes/workTypes');
 const vendorLocationRoutes = require('./routes/vendorLocation');
 const presenceRoutes = require('./routes/presence');
 const orderRoutes = require('./routes/orders');
+const ordersFetchListRoutes = require('./routes/ordersFetchList');
 const earningsRoutes = require('./routes/earnings');
 const proxyRoutes = require('./routes/proxy');
 const { seedWorkTypes } = require('./controllers/workTypesController');
@@ -70,6 +71,7 @@ if (config.enableWorkTypes) {
 } else {
   console.log('ℹ️  Work-types API disabled (set ENABLE_WORK_TYPES=true to enable)');
 }
+app.use('/api/orders', ordersFetchListRoutes); // Order fetchlist endpoints (must be BEFORE orderRoutes)
 app.use('/api/orders', orderRoutes); // Order management routes
 app.use('/api/earnings', earningsRoutes); // Earnings endpoints
 app.use('/api/proxy', proxyRoutes); // Backend-to-backend proxy endpoints
