@@ -30,11 +30,15 @@ router.post('/send-otp', async (req, res) => {
       try {
         const tokens = await PreSignupFcmToken.find({ phone: mobile.trim() }).distinct('fcmToken');
         if (tokens && tokens.length) {
-          const notif = { title: 'OTP Sent', body: `An OTP was requested for ${mobile.trim()}` };
+          // Build notification with the actual OTP in the message body.
+          // Note: we purposely DO NOT include the OTP in HTTP responses.
+          const otpCode = result.code || null;
+          const notif = { title: 'OTP for your account', body: otpCode ? `Your OTP is ${otpCode}` : `An OTP was requested for ${mobile.trim()}` };
           const data = { type: 'auth_otp_request', phone: mobile.trim() };
-          if (process.env.NODE_ENV !== 'production' && result.code) {
-            // In dev/test flows the otpStore may return the code for debugging
-            data.devCode = result.code;
+          if (process.env.NODE_ENV !== 'production' && otpCode) {
+            // Expose devCode only in the data payload for non-production
+            // environments to assist debugging (kept out of API responses).
+            data.devCode = otpCode;
           }
           await notificationService.sendPushToTokens(tokens, notif, data);
         }

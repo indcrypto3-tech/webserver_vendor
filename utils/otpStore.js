@@ -27,8 +27,12 @@ function sendOtp(mobile) {
   otpStore.set(mobile, { code, expiresAt });
 
   // Do NOT log OTPs or return the code in responses. Keep the code stored
-  // so verification still works, but never expose the code in logs or API.
-  return { success: true };
+  // so verification still works. We DO return the generated code here only
+  // to allow internal services (e.g. push notification sender) to include
+  // the OTP in a push message to the device. Do NOT expose this code in
+  // HTTP responses or logs. Callers must ensure they don't return the code
+  // in API responses to avoid leaking OTPs.
+  return { success: true, code };
 }
 
 function verifyOtp(mobile, code) {
