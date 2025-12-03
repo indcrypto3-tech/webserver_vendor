@@ -2,17 +2,13 @@
 // During tests we delegate to the archived implementation. In production
 // this module exposes a lightweight shim that throws if used.
 
-if (process.env.NODE_ENV === 'test') {
-  module.exports = require('../archive/dev_tools/models/mockOrderCall');
-} else {
-  // Minimal shim exposing the methods the code might call, but making them
-  // no-ops or throwing to avoid accidental usage in production.
-  const shim = {
-    create: async () => { throw new Error('MockOrderCall model is disabled in production'); },
-    findOne: async () => null,
-    countDocuments: async () => 0,
-    deleteMany: async () => ({ deletedCount: 0 }),
-  };
+// Mock order audit model removed. This shim ensures any accidental usage
+// fails fast. If you depend on audit records, migrate to a production
+// audit/logging approach instead of mock endpoints.
 
-  module.exports = shim;
-}
+module.exports = {
+  create: async () => { throw new Error('MockOrderCall model removed'); },
+  findOne: async () => null,
+  countDocuments: async () => 0,
+  deleteMany: async () => ({ deletedCount: 0 }),
+};
