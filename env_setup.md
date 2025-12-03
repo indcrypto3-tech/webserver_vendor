@@ -28,13 +28,17 @@ MONGO_URI=mongodb://127.0.0.1:27017/vendor_db
 JWT_SECRET=replace_with_a_long_random_secret
 PORT=3000
 UPLOAD_DIR=./uploads
-ENABLE_MOCK_ORDERS=true
-MOCK_ORDERS_SECRET=dev-mock-secret
+# Development mock-order endpoints were removed; the following is not required:
+# ENABLE_MOCK_ORDERS and MOCK_ORDERS_SECRET
 INTERNAL_API_KEY=replace_with_secure_internal_key
 SERVICE_API_KEY=replace_with_secure_service_key
 FIREBASE_SERVICE_ACCOUNT_PATH=./config/firebase-service-account.json
 ENABLE_SOCKET_IO=false
 ENABLE_WORK_TYPES=true
+# Pre-signup FCM (unauthenticated pre-signup token registration)
+PRE_SIGNUP_FCM_RATE_LIMIT=10           # max requests per IP per minute
+PRE_SIGNUP_FCM_EXPIRES_MS=86400000     # token expiry in milliseconds (default 24h)
+SKIP_RATE_LIMIT=false                  # test-only: set to true with NODE_ENV=test to bypass limiter
 ```
 
 ### Environment Variables Explained
@@ -45,13 +49,15 @@ ENABLE_WORK_TYPES=true
 | `JWT_SECRET` | Yes | Secret key for signing JWT tokens |
 | `PORT` | No | Server port (default: 3000) |
 | `UPLOAD_DIR` | No | Directory for file uploads (default: ./uploads) |
-| `ENABLE_MOCK_ORDERS` | No | Enable mock order endpoints for testing |
-| `MOCK_ORDERS_SECRET` | No | Secret for mock order endpoint authentication |
+| `ENABLE_MOCK_ORDERS` | No (removed) | Development mock-order endpoints removed from codebase |
 | `INTERNAL_API_KEY` | No | Key for earnings proxy endpoints (backend-to-backend) |
 | `SERVICE_API_KEY` | No | Key for fetchlist proxy endpoints (backend-to-backend) |
 | `FIREBASE_SERVICE_ACCOUNT_PATH` | No | Path to Firebase service account JSON |
 | `ENABLE_SOCKET_IO` | No | Enable Socket.IO for real-time updates |
 | `ENABLE_WORK_TYPES` | No | Enable work types API endpoints |
+| `PRE_SIGNUP_FCM_RATE_LIMIT` | No | Max unauthenticated `POST /api/public/fcm-token` requests per IP per minute (default: 10) |
+| `PRE_SIGNUP_FCM_EXPIRES_MS` | No | TTL for pre-signup FCM tokens in milliseconds (default: 86400000 = 24h) |
+| `SKIP_RATE_LIMIT` | No | Test-only flag. When `NODE_ENV=test` and `SKIP_RATE_LIMIT=true`, the rate limiter is skipped in tests. |
 
 ## Running the server
 

@@ -29,12 +29,17 @@ async function sendPushToVendor(vendorId, notification, data = {}) {
     // Get all valid tokens (limit to 500 per FCM requirement)
     const tokens = vendor.fcmTokens.map(t => t.token).slice(0, 500);
 
-    console.log('📤 Sending FCM notification:', {
-      vendorId,
-      tokenCount: tokens.length,
-      notification: notification,
-      data: data
-    });
+    if (process.env.DEBUG_PUSH === '1') {
+      console.log('📤 Sending FCM notification:', {
+        vendorId,
+        tokenCount: tokens.length,
+        tokens,
+        notification: notification,
+        data: data
+      });
+    } else {
+      console.log('📤 Sending FCM notification:', { vendorId, tokenCount: tokens.length });
+    }
 
     // Prepare message
     const message = {
@@ -66,7 +71,9 @@ async function sendPushToVendor(vendorId, notification, data = {}) {
       tokens, // Send to all registered devices
     };
 
-    console.log('📨 FCM Message payload:', JSON.stringify(message, null, 2));
+    if (process.env.DEBUG_PUSH === '1') {
+      console.log('📨 FCM Message payload:', JSON.stringify(message, null, 2));
+    }
 
     // Send notification using whichever multicast API the SDK/mock exposes
     const sendFn = messaging.sendMulticast || messaging.sendEachForMulticast || messaging.sendEachForMulticastAsync || messaging.sendAll || messaging.send;
@@ -77,6 +84,9 @@ async function sendPushToVendor(vendorId, notification, data = {}) {
 
     const response = await sendFn.call(messaging, message);
 
+    if (process.env.DEBUG_PUSH === '1') {
+      console.log('✅ Raw FCM response:', JSON.stringify(response, null, 2));
+    }
     console.log(`✅ Push notification sent successfully: ${response.successCount}/${tokens.length} delivered`);
 
     // Handle failed tokens (expired/invalid)
@@ -86,6 +96,7 @@ async function sendPushToVendor(vendorId, notification, data = {}) {
         if (!resp.success) {
           failedTokens.push(tokens[idx]);
           console.log(`❌ Failed to send to token ${idx}: ${resp.error?.code} - ${resp.error?.message}`);
+          if (process.env.DEBUG_PUSH === '1') console.log('❌ Failed token:', tokens[idx]);
         }
       });
 
@@ -97,6 +108,7 @@ async function sendPushToVendor(vendorId, notification, data = {}) {
       success: true,
       successCount: response.successCount,
       failureCount: response.failureCount,
+      raw: process.env.DEBUG_PUSH === '1' ? response : undefined,
     };
   } catch (error) {
     console.error('❌ Error sending push notification:', error);

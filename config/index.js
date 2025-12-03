@@ -20,9 +20,7 @@ module.exports = {
   // Vendor presence TTL (Time To Live)
   presenceTTLSeconds: parseInt(process.env.PRESENCE_TTL_SECONDS) || 90, // Default 90 seconds
   
-  // Mock order endpoint configuration (dev-only)
-  enableMockOrders: process.env.ENABLE_MOCK_ORDERS === 'true',
-  mockOrdersSecret: process.env.MOCK_ORDERS_SECRET || '',
+  // Note: Development-only mock-order feature removed. Remove related env vars.
 
   // Work types feature flag. Set to 'true' to enable `/api/work-types` endpoint.
   // Default: false (disabled). To enable, set environment variable ENABLE_WORK_TYPES=true

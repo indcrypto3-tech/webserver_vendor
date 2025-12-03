@@ -219,9 +219,9 @@ Used by `/api/vendors` endpoints to manage vendor lifecycle and profile data.
 Controller (vendors)
 
 [ File name ]
-`controllers/workTypesController.js`
+`controllers/workTypesController.js` (removed)
 [its path ]
-`/controllers/workTypesController.js`
+`/controllers/workTypesController.js` (removed)
 [What that file does]
 Provides `getWorkTypes` (returns active work types) and `seedWorkTypes` to populate DB fallback defaults.
 [What is use of that file in prjoject ]
@@ -296,9 +296,9 @@ Exposes full order lifecycle management actions to vendors (list, view, accept, 
 Route definitions (orders)
 
 [ File name ]
-`routes/workTypes.js`
+`routes/workTypes.js` (removed)
 [its path ]
-`/routes/workTypes.js`
+`/routes/workTypes.js` (removed)
 [What that file does]
 Simple endpoint `GET /` that returns available work types.
 [What is use of that file in prjoject ]
@@ -399,7 +399,8 @@ Service (realtime)
 [its path ]
 `/models`
 [What that folder does]
-Mongoose models representing domain entities: `vendor`, `order`, `vendorPresence`, `workType`.
+  Mongoose models representing domain entities: `vendor`, `order`, `vendorPresence`.
+  Note: `workType` model and related files were removed from the codebase; see `archive/dev_tools` for the previous implementation if needed.
 [What is use of that file in prjoject ]
 Defines schemas and helper instance/static methods to shape persistence layer.
 [Type of that file e.g helper / main endpoint ....etc]
@@ -450,11 +451,13 @@ Persists vendor location updates submitted via `POST /api/vendor/location`.
 Model (vendor location)
 
 [ File name ]
-`models/workType.js`
+`models/workType.js` (removed)
 [its path ]
-`/models/workType.js`
+`/models/workType.js` (removed)
 [What that file does]
-Schema for work types/categories; used to seed DB and return active types.
+  Schema for work types/categories (removed from codebase).
+  Provides persistent list of services available in the app (now removed).
+  Model (work type) — removed
 [What is use of that file in prjoject ]
 Provides persistent list of services available in the app.
 [Type of that file e.g helper / main endpoint ....etc]
@@ -558,7 +561,7 @@ Documentation / patches
 - `GET /api/vendors/presence/online` : Get list of online vendors (requires `authenticate`)
 - `GET /api/vendors/presence/nearby` : Find online vendors near a location (query: `lat`, `lng`, optional `maxDistance`) (requires `authenticate`)
 
-- `GET /api/work-types` : List available work types (public, gated by `ENABLE_WORK_TYPES` flag)
+- `GET /api/work-types` : REMOVED — work-types API was removed from the codebase. Use archived tooling if required.
 
 - `GET /api/orders` : List orders for authenticated vendor with pagination (query: `page`, `limit`) (requires `authenticate`)
 - `GET /api/orders/:id` : Get order details by ID (requires `authenticate`)
@@ -1148,15 +1151,15 @@ Provides vendor-facing order management endpoints with structured logging and co
 Controller (orders - extended)
 
 [ File name ]
-`controllers/devOrdersController.js`
+`controllers/devOrdersController.js` (removed)
 [its path ]
 `/controllers/devOrdersController.js`
 [What that file does]
-Contains dev-only endpoints and middleware: `checkDevKey`, `createMockOrder`, `getMockOrderStats` for testing/mock order creation.
+DEPRECATED: Development-only mock-order controller removed from the codebase. Do not rely on dev-only endpoints; update tests and tooling to use production flows or test-only shims.
 [What is use of that file in prjoject ]
-Mounted under `/api/dev` when mock orders are enabled; used for testing and development.
+Removed — previously mounted under `/api/dev` for local testing.
 [Type of that file e.g helper / main endpoint ....etc]
-Controller / dev endpoints
+Controller (deprecated)
 
 [ File name ]
 `controllers/presenceController.js`
@@ -1181,15 +1184,15 @@ Used by `/api/vendors` endpoints to manage vendor lifecycle and profile data.
 Controller (vendors)
 
 [ File name ]
-`controllers/workTypesController.js`
+`controllers/workTypesController.js` (removed)
 [its path ]
 `/controllers/workTypesController.js`
-[What that file does]
-Provides `getWorkTypes` (returns active work types) and `seedWorkTypes` to populate DB fallback defaults.
-[What is use of that file in prjoject ]
-Supplies work type data to clients (e.g., list of services) and seeds DB on startup.
+[What that file did]
+Provided `getWorkTypes` (returns active work types) and `seedWorkTypes` to populate DB fallback defaults. This controller has been removed from the codebase.
+[What was use of that file in prjoject ]
+Supplied work type data to clients (e.g., list of services) and seeded DB on startup (now removed).
 [Type of that file e.g helper / main endpoint ....etc]
-Controller (work types)
+Controller (work types) — removed
 
 [ File name ]
 `controllers/earningsController.js`
@@ -1258,7 +1261,7 @@ Exposes full order lifecycle management actions to vendors (list, view, accept, 
 Route definitions (orders)
 
 [ File name ]
-`routes/workTypes.js`
+`routes/workTypes.js` (removed)
 [its path ]
 `/routes/workTypes.js`
 [What that file does]
@@ -1280,15 +1283,15 @@ Exposes vendor earnings data endpoints for mobile/web clients.
 Route definitions (earnings)
 
 [ File name ]
-`routes/devOrders.js`
+`routes/devOrders.js` (removed)
 [its path ]
 `/routes/devOrders.js`
 [What that file does]
-Development-only routes: `POST /orders/mock` to create mock orders and `GET /orders/stats` for usage statistics. Protected by `x-dev-key` middleware.
+DEPRECATED: Development-only route file removed. Mock-order endpoints are no longer present in the application and should not be used.
 [What is use of that file in prjoject ]
-Used for testing and simulating order flows when `ENABLE_MOCK_ORDERS=true`.
+Removed — was used for local testing when `ENABLE_MOCK_ORDERS` was enabled.
 [Type of that file e.g helper / main endpoint ....etc]
-Route definitions (dev)
+Route definitions (deprecated)
 
 [ File name ]
 `routes/vendorLocation.js`
@@ -1632,7 +1635,7 @@ Exposes full order lifecycle management actions to vendors (list, view, accept, 
 Route definitions (orders)
 
 [ File name ]
-`routes/workTypes.js`
+`routes/workTypes.js` (removed)
 [its path ]
 `/routes/workTypes.js`
 [What that file does]
@@ -1709,15 +1712,15 @@ Provides safe DB operations for order state changes used by `ordersController`.
 Service (orders - extended)
 
 [ File name ]
-`services/devOrdersService.js`
+`services/devOrdersService.js` (removed)
 [its path ]
 `/services/devOrdersService.js`
 [What that file does]
-Logic to create mock orders and return idempotency info and stats for dev endpoints.
+DEPRECATED: Development-only mock-order service removed. Testing and automation should use production services or dedicated test harnesses.
 [What is use of that file in prjoject ]
-Supports `controllers/devOrdersController.js` for test flows.
+Removed — previously supported dev mock order controller.
 [Type of that file e.g helper / main endpoint ....etc]
-Service (development)
+Service (deprecated)
 
 [ File name ]
 `services/earningsService.js`
@@ -1819,15 +1822,15 @@ Provides persistent list of services available in the app.
 Model (work type)
 
 [ File name ]
-`models/mockOrderCall.js`
+`models/mockOrderCall.js` (removed)
 [its path ]
 `/models/mockOrderCall.js`
 [What that file does]
-Used by dev endpoints to persist idempotency and stats about mock order calls.
+DEPRECATED: Mock-order audit model removed. Do not reference this model; audit/logging for production should use a proper persistent system.
 [What is use of that file in prjoject ]
-Helps idempotency and analytics for `devOrders` mock endpoints.
+Removed — previously used by dev mock-order endpoints.
 [Type of that file e.g helper / main endpoint ....etc]
-Model (dev/testing)
+Model (deprecated)
 
 [ File name ]
 `utils/` (folder)
@@ -1927,7 +1930,7 @@ Documentation / patches
 - `GET /api/vendors/presence/online` : Get list of online vendors (requires `authenticate`)
 - `GET /api/vendors/presence/nearby` : Find online vendors near a location (query: `lat`, `lng`, optional `maxDistance`) (requires `authenticate`)
 
-- `GET /api/work-types` : List available work types (public, gated by ENABLE_WORK_TYPES flag)
+- `GET /api/work-types` : REMOVED — work-types API was removed from the codebase. Use archived tooling if required.
 
 - `GET /api/orders` : List orders for authenticated vendor with pagination (query: `page`, `limit`) (requires `authenticate`)
 - `GET /api/orders/:id` : Get order details by ID (requires `authenticate`)
@@ -1946,12 +1949,12 @@ Documentation / patches
 
 - `POST /api/vendor/location` : Update vendor's current location (requires `authenticate`)
 
-- `POST /api/dev/orders/mock` : Create a mock order (dev only, requires `x-dev-key` header and `ENABLE_MOCK_ORDERS=true`)
-- `GET /api/dev/orders/stats` : Get statistics about mock orders (dev only, requires `x-dev-key`)
+<!-- Dev/mock-order endpoints removed from codebase -->
+- NOTE: Development-only mock-order endpoints (`/api/dev/*`) have been removed. Remove any references in tests or tooling and use production APIs or dedicated test harnesses instead.
 
 Notes:
 - Many protected endpoints use the `authenticate` middleware which expects a signed JWT (generated by `utils/jwt.js`).
-- Dev endpoints under `/api/dev` are only mounted when `config.enableMockOrders` is true; they require an `x-dev-key` header validated against `config.mockOrdersSecret`.
+-- Dev/mock-order endpoints have been removed and are no longer mounted. Tests and documentation that referenced these routes should be updated.
 - Upload endpoints use `middleware/upload.js` and store files in `/uploads` when writable.
 
 ---
@@ -2139,7 +2142,7 @@ curl -X POST http://localhost:3000/api/orders/507f1f77bcf86cd799439011/verify-ot
 **Module 3 Related:**
 - `NODE_ENV` - Set to "production" to hide OTP codes in API responses (default: development)
 - `FIREBASE_SERVICE_ACCOUNT_PATH` - Path to Firebase service account JSON for FCM push notifications (optional)
-- `ENABLE_MOCK_ORDERS` - Enable dev mock order endpoints (default: false)
+- `ENABLE_MOCK_ORDERS` - REMOVED: development mock-order feature removed from codebase
 
 **Existing:**
 - `MONGO_URI` - MongoDB connection string (required)
@@ -2443,13 +2446,8 @@ Response:
 ```
 
 Work types
-- `GET /api/work-types` Response:
-```json
-{
-  "ok": true,
-  "workTypes": [ { "id": "wt_1", "name": "Plumbing" }, { "id": "wt_2", "name": "Electrical" } ]
-}
-```
+
+- NOTE: The `GET /api/work-types` response example is removed — this API was removed from the codebase. If you need a local copy of the previous response examples or seed data, check `archive/dev_tools`.
 
 Orders
 - `GET /api/orders?page=1&limit=20` Response:
@@ -2550,15 +2548,8 @@ Proxy (backend-to-backend)
 ```
 Response: same as `GET /api/earnings/summary` above.
 
-Dev / Mock endpoints
-- `POST /api/dev/orders/mock` Request:
-```json
-{ "workTypeId": "wt_1", "address": "Test address", "fare": 120 }
-```
-Response:
-```json
-{ "ok": true, "orderId": "507f...", "created": true }
-```
+Development / Mock endpoints
+Development-only mock-order endpoints have been removed from the codebase. The `/api/dev/*` routes are no longer available. If you need similar test helpers, use isolated test harnesses or the archived tools under `archive/dev_tools`.
 
 Errors (example format)
 ```json

@@ -1,12 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const workTypesController = require('../controllers/workTypesController');
 
-/**
- * GET /api/work-types
- * Get list of available work types
- * No authentication required
- */
-router.get('/', workTypesController.getWorkTypes);
+// Work-types endpoint removed: return 404 for all requests
+router.get('/', (req, res) => res.status(404).json({ ok: false, error: 'work_types_removed' }));
 
 module.exports = router;

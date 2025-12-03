@@ -14,7 +14,9 @@ This document lists every HTTP endpoint exposed by the server, with descriptions
 - `JWT_SECRET` — JWT signing secret used by this server
 - `PORT` — server port (default `3000`)
 - `INTERNAL_API_KEY` — secret for backend-to-backend proxy endpoints
-- `ENABLE_MOCK_ORDERS` — enable dev mock order endpoints (default false)
+- `ENABLE_TEST_SERVER` — allow the server process to call `listen()` during automated tests (default `false`). Tests normally run without starting the HTTP listener.
+
+Note: Development mock-order endpoints have been removed from the codebase and the `ENABLE_MOCK_ORDERS` flag is no longer used. If you relied on those endpoints, use archived tools under `archive/dev_tools` or run a dedicated test harness.
 
 ---
 
@@ -45,6 +47,23 @@ curl -X POST http://localhost:3000/api/auth/verify-otp \
   -H "Content-Type: application/json" \
   -d '{"phone":"+919999999999","code":"123456"}'
 ```
+
+### Pre-signup FCM (unauthenticated)
+
+- `POST /api/public/fcm-token`
+  - Purpose: allow a mobile client to register a FCM token together with a phone number before signup/signin completes. This is an unauthenticated endpoint intended for the mobile app during the pre-signup flow.
+  - Body: `{
+      "phone": "+919999999999",
+      "fcmToken": "<FCM token string>",
+      "deviceId": "<optional device id>",
+      "userAgent": "<optional user agent>"
+    }`
+  - Behavior: stores the token (TTL'd) and allows the server to target push notifications (OTP prompts) to devices that registered the phone number prior to account creation.
+  - Response: `{ "ok": true }` on success.
+
+Notes:
+- OTP values are not returned in production responses or server logs. Any development-only OTP debugging endpoints or in-response OTP exposure have been removed.
+- Push notifications using pre-signup tokens are only sent during authentication flows (signup/signin OTP requests). They are not used for order verification flows.
 
 ---
 
@@ -182,15 +201,9 @@ curl -H "Authorization: Bearer <JWT>" "http://localhost:3000/api/earnings/summar
 
 ---
 
-## Development / Mock endpoints (dev-only)
+## Development / Mock endpoints (removed)
 
-These are only mounted when `ENABLE_MOCK_ORDERS=true`.
-
-- `POST /api/dev/orders/mock`
-  - Create a mock order for testing. Requires `x-dev-key` header validated against `config.mockOrdersSecret`.
-
-- `GET /api/dev/orders/stats`
-  - Return stats for mock order usage. Requires `x-dev-key`.
+Development-only mock-order endpoints have been removed from the codebase. Tests and tooling that previously relied on `/api/dev/*` should be updated to use production APIs or dedicated test harnesses. If you need the archived implementation for local experiments, check `archive/dev_tools`.
 
 ---
 

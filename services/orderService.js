@@ -226,8 +226,8 @@ async function createOrder(data) {
 
   // Auto-assign vendor if requested and no specific vendor provided
   if (data.autoAssignVendor && !data.vendorId) {
-    // In test or mock mode, pick the first online vendor (deterministic for tests)
-    if (process.env.ENABLE_MOCK_ORDERS === 'true' || process.env.NODE_ENV === 'test') {
+    // In test mode, pick the first online vendor (deterministic for tests)
+    if (process.env.NODE_ENV === 'test') {
       const onlineVendorIds = await findNearbyOnlineVendors({ lat: order.pickup.coordinates[1], lng: order.pickup.coordinates[0] });
       if (onlineVendorIds.length > 0) {
         // Prefer vendors that have an active Socket.IO connection when possible

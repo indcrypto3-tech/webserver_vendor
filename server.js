@@ -11,7 +11,6 @@ const config = require('./config');
 // Import routes
 const authRoutes = require('./routes/auth');
 const vendorRoutes = require('./routes/vendors');
-const workTypesRoutes = require('./routes/workTypes');
 const vendorLocationRoutes = require('./routes/vendorLocation');
 const presenceRoutes = require('./routes/presence');
 const orderRoutes = require('./routes/orders');
@@ -19,7 +18,7 @@ const ordersFetchListRoutes = require('./routes/ordersFetchList');
 const earningsRoutes = require('./routes/earnings');
 const proxyRoutes = require('./routes/proxy');
 const publicFcmRoutes = require('./routes/publicFcm');
-const { seedWorkTypes } = require('./controllers/workTypesController');
+// Work-types feature removed: routes and controller deleted
 
 // Initialize Express app
 const app = express();
@@ -66,12 +65,7 @@ app.use('/uploads', express.static(uploadsPath));
 app.use('/api/auth', authRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/vendors', presenceRoutes); // Presence routes under /api/vendors
-if (config.enableWorkTypes) {
-  app.use('/api/work-types', workTypesRoutes);
-  app.use('/api', workTypesRoutes); // For /api/vendors/me/work-types
-} else {
-  console.log('ℹ️  Work-types API disabled (set ENABLE_WORK_TYPES=true to enable)');
-}
+console.log('ℹ️  Work-types API removed from codebase');
 app.use('/api/orders', ordersFetchListRoutes); // Order fetchlist endpoints (must be BEFORE orderRoutes)
 app.use('/api/orders', orderRoutes); // Order management routes
 app.use('/api/earnings', earningsRoutes); // Earnings endpoints
@@ -109,9 +103,7 @@ app.get('/', (req, res) => {
         getMe: 'GET /api/vendors/me',
         updateMe: 'PATCH /api/vendors/me'
       },
-      workTypes: {
-        getAll: 'GET /api/work-types',
-      },
+      // workTypes API removed
       health: 'GET /health',
     },
   });
@@ -138,11 +130,10 @@ if (process.env.NODE_ENV !== 'test') {
     .then(() => {
       console.log('Connected to MongoDB');
       console.log(`Database: ${config.mongoUri}`);
-      // Seed work types if database is empty
-      seedWorkTypes();
+      // Work types removed; no seeding performed
 
       // Initialize Firebase Admin SDK (require lazily so tests can mock the module)
-      if (config.enableSocketIO || config.enableMockOrders) {
+      if (config.enableSocketIO) {
         try {
           const { initializeFirebase } = require('./config/firebase');
           initializeFirebase();
