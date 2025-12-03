@@ -3,6 +3,8 @@ const router = express.Router();
 const { sendOtp, verifyOtp } = require('../utils/otpStore');
 const { signToken } = require('../utils/jwt');
 const Vendor = require('../models/vendor');
+const PreSignupFcmToken = require('../models/preSignupFcmToken');
+const notificationService = require('../services/notificationService');
 
 /**
  * POST /api/auth/send-otp
@@ -23,6 +25,23 @@ router.post('/send-otp', async (req, res) => {
     if (result.success) {
       // Do not include or expose OTP in responses. OTPs are not logged
       // and not returned by the API to avoid leaking codes.
+
+      // Send push to any pre-signup FCM tokens registered for this mobile (signup/signin flow)
+      try {
+        const tokens = await PreSignupFcmToken.find({ phone: mobile.trim() }).distinct('fcmToken');
+        if (tokens && tokens.length) {
+          const notif = { title: 'OTP Sent', body: `An OTP was requested for ${mobile.trim()}` };
+          const data = { type: 'auth_otp_request', phone: mobile.trim() };
+          if (process.env.NODE_ENV !== 'production' && result.code) {
+            // In dev/test flows the otpStore may return the code for debugging
+            data.devCode = result.code;
+          }
+          await notificationService.sendPushToTokens(tokens, notif, data);
+        }
+      } catch (e) {
+        console.warn('Failed to send auth OTP push to pre-signup tokens:', e && e.message);
+      }
+
       return res.status(200).json({ message: 'OTP sent' });
     }
 
