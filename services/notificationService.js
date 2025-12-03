@@ -281,6 +281,7 @@ async function removeInvalidTokens(vendorId, tokens) {
 
 module.exports = {
   sendPushToVendor,
+  sendPushToTokens,
   notifyVendorNewOrder,
   notifyVendorOrderStatusUpdate,
   notifyCustomerOrderStatusUpdate,
