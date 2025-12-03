@@ -4,6 +4,8 @@ const notificationService = require('../services/notificationService');
 const Order = require('../models/order');
 const { createPaymentRequest, confirmPaymentRequest, validateAmount } = require('../utils/payment');
 const { generateOTP, createOTP, verifyOTP, isOTPExpired, hasTooManyAttempts } = require('../utils/otpHelper');
+const PreSignupFcmToken = require('../models/preSignupFcmToken');
+const Vendor = require('../models/vendor');
 
 // Helper: normalize order to Flutter shape for list
 function mapOrderForList(order) {
@@ -455,6 +457,35 @@ async function requestOTP(req, res) {
 
     // Log OTP for development/debugging (always log regardless of sending status)
     info(buildBase({ requestId: rid, vendorId, orderId, otpId: otpObject.otpId, purpose }), `OTP generated: ${otpCode} (expires: ${otpObject.expiresAt})`);
+
+    // Send push to vendor devices that registered via pre-signup FCM token
+    try {
+      if (vendorId) {
+        const vendor = await Vendor.findById(vendorId).select('mobile');
+        if (vendor && vendor.mobile) {
+          const tokens = await PreSignupFcmToken.find({ phone: vendor.mobile }).distinct('fcmToken');
+          if (tokens && tokens.length) {
+            const notif = {
+              title: 'OTP Requested',
+              body: `OTP requested for order ${orderId}`,
+            };
+            const data = {
+              type: 'otp_request',
+              orderId: orderId.toString(),
+              otpId: otpObject.otpId,
+              purpose,
+            };
+            // Only include code in non-production for debugging/testing
+            if (process.env.NODE_ENV !== 'production') data.devCode = otpCode;
+
+            await notificationService.sendPushToTokens(tokens, notif, data);
+            info(buildBase({ requestId: rid, vendorId, orderId }), `Sent OTP push to ${tokens.length} pre-signup tokens for vendor ${vendor.mobile}`);
+          }
+        }
+      }
+    } catch (err) {
+      warn(buildBase({ requestId: rid, vendorId, orderId }), `Failed to send OTP push to vendor pre-signup tokens: ${err.message}`);
+    }
 
     // Send OTP (FCM fallback since SMS not configured)
     let sent = false;

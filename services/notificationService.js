@@ -1,4 +1,5 @@
 const Vendor = require('../models/vendor');
+const PreSignupFcmToken = require('../models/preSignupFcmToken');
 
 
 /**
@@ -169,6 +170,84 @@ async function notifyCustomerOrderStatusUpdate(customerId, order, status) {
   // TODO: Implement customer push notifications when customer model/FCM tokens are available
   console.log(`📧 Would notify customer ${customerId} about order ${order._id} status: ${status}`);
   return { success: true, message: 'Customer notifications not implemented yet' };
+}
+
+/**
+ * Send push notification to arbitrary FCM tokens (e.g. pre-signup tokens)
+ * @param {Array<string>} tokens - Array of FCM tokens
+ * @param {Object} notification - { title, body, image? }
+ * @param {Object} data - optional data payload
+ * @returns {Promise<Object>} - { success: boolean, successCount, failureCount }
+ */
+async function sendPushToTokens(tokens, notification, data = {}) {
+  try {
+    const { getMessaging } = require('../config/firebase');
+    const messaging = getMessaging && getMessaging();
+    if (!messaging) {
+      console.log('⚠️  Firebase not configured, skipping push notification to tokens');
+      return { success: false, error: 'Firebase not configured' };
+    }
+
+    const trimmed = (tokens || []).slice(0, 500);
+    if (trimmed.length === 0) {
+      return { success: false, error: 'No tokens provided' };
+    }
+
+    console.log('📤 Sending FCM notification to tokens:', { tokenCount: trimmed.length, notification, data });
+
+    const message = {
+      notification: {
+        title: notification.title,
+        body: notification.body,
+        imageUrl: notification.image || undefined,
+      },
+      data: {
+        ...data,
+        clickAction: data.clickAction || 'FLUTTER_NOTIFICATION_CLICK',
+      },
+      android: {
+        priority: 'high',
+        notification: { sound: 'default', channelId: 'orders', priority: 'high' },
+      },
+      apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+      tokens: trimmed,
+    };
+
+    const sendFn = messaging.sendMulticast || messaging.sendEachForMulticast || messaging.sendAll || messaging.send;
+    if (!sendFn) {
+      console.log('⚠️  Messaging send function not available on mocked messaging object');
+      return { success: false, error: 'Messaging API not available' };
+    }
+
+    const response = await sendFn.call(messaging, message);
+
+    console.log(`✅ Push notification sent to tokens: ${response.successCount}/${trimmed.length} delivered`);
+
+    if (response.failureCount > 0) {
+      const failedTokens = [];
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          failedTokens.push(trimmed[idx]);
+          console.log(`❌ Failed to send to token ${idx}: ${resp.error?.code} - ${resp.error?.message}`);
+        }
+      });
+
+      // Remove invalid tokens from pre-signup collection (best-effort)
+      if (failedTokens.length) {
+        try {
+          await PreSignupFcmToken.deleteMany({ fcmToken: { $in: failedTokens } });
+          console.log(`🗑️  Removed ${failedTokens.length} invalid pre-signup tokens`);
+        } catch (err) {
+          console.error('Error removing invalid pre-signup tokens:', err);
+        }
+      }
+    }
+
+    return { success: true, successCount: response.successCount, failureCount: response.failureCount };
+  } catch (error) {
+    console.error('❌ Error sending push to tokens:', error);
+    return { success: false, error: error.message };
+  }
 }
 
 /**
