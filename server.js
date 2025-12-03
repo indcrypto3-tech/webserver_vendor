@@ -78,17 +78,9 @@ app.use('/api/proxy', proxyRoutes); // Backend-to-backend proxy endpoints
 // Vendor location endpoint mounted at /api/vendor/location
 app.use('/api/vendor', vendorLocationRoutes);
 
-// Conditionally mount dev/mock endpoints (only when ENABLE_MOCK_ORDERS=true)
-if (config.enableMockOrders) {
-  console.log('⚠️  Mock order endpoint enabled (ENABLE_MOCK_ORDERS=true)');
-  if (!config.mockOrdersSecret) {
-    console.warn('⚠️  WARNING: MOCK_ORDERS_SECRET not set. Mock endpoints are vulnerable!');
-  }
-  const devOrdersRoutes = require('./routes/devOrders');
-  app.use('/api/dev', devOrdersRoutes);
-} else {
-  console.log('ℹ️  Mock order endpoint disabled (set ENABLE_MOCK_ORDERS=true to enable)');
-}
+// Dev/mock endpoints removed from production routes. Archived copies
+// are available under `archive/dev_tools` if you need to run dev-only
+// helpers locally or in isolated test environments.
 
 // Health check endpoint
 app.get('/health', (req, res) => {

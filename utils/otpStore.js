@@ -30,11 +30,9 @@ function sendOtp(mobile) {
 
   otpStore.set(mobile, { code, expiresAt });
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`[DEV-ONLY] OTP for ${mobile}: ${code} (expires in ${(config.otpExpiry||300000)/1000}s)`);
-  }
-
-  return { success: true, code };
+  // Do NOT log OTPs or return the code in responses. Keep the code stored
+  // so verification still works, but never expose the code in logs or API.
+  return { success: true };
 }
 
 function verifyOtp(mobile, code) {

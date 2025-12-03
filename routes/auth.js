@@ -21,12 +21,9 @@ router.post('/send-otp', async (req, res) => {
     const result = sendOtp(mobile.trim());
 
     if (result.success) {
-      return res.status(200).json({
-        message: 'OTP sent (dev-only)',
-        // Optionally include OTP in response for dev/testing
-        // Remove this in production when using real SMS provider
-        ...(process.env.NODE_ENV !== 'production' && { otp: result.code }),
-      });
+      // Do not include or expose OTP in responses. OTPs are not logged
+      // and not returned by the API to avoid leaking codes.
+      return res.status(200).json({ message: 'OTP sent' });
     }
 
     return res.status(500).json({ message: 'Failed to send OTP' });
