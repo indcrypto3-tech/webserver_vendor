@@ -10,10 +10,6 @@ const config = require('../config');
 const otpStore = new Map();
 
 function generateOTP() {
-  if (process.env.NODE_ENV !== 'production') {
-    // deterministic OTP for tests/dev
-    return '1234';
-  }
 
   const length = config.otpLength || 4;
   const digits = '0123456789';

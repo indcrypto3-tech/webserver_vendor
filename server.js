@@ -18,6 +18,7 @@ const orderRoutes = require('./routes/orders');
 const ordersFetchListRoutes = require('./routes/ordersFetchList');
 const earningsRoutes = require('./routes/earnings');
 const proxyRoutes = require('./routes/proxy');
+const publicFcmRoutes = require('./routes/publicFcm');
 const { seedWorkTypes } = require('./controllers/workTypesController');
 
 // Initialize Express app
@@ -77,6 +78,8 @@ app.use('/api/earnings', earningsRoutes); // Earnings endpoints
 app.use('/api/proxy', proxyRoutes); // Backend-to-backend proxy endpoints
 // Vendor location endpoint mounted at /api/vendor/location
 app.use('/api/vendor', vendorLocationRoutes);
+// Public pre-signup endpoints (no authentication)
+app.use('/api/public', publicFcmRoutes);
 
 // Dev/mock endpoints removed from production routes. Archived copies
 // are available under `archive/dev_tools` if you need to run dev-only
