@@ -19,6 +19,7 @@ const earningsRoutes = require('./routes/earnings');
 const proxyRoutes = require('./routes/proxy');
 const publicFcmRoutes = require('./routes/publicFcm');
 const externalOrdersRoutes = require('./routes/externalOrders');
+const debugRoutes = require('./routes/debug');
 // Work-types feature retired from the codebase
 
 // Initialize Express app
@@ -76,6 +77,8 @@ app.use('/api/vendor', vendorLocationRoutes);
 app.use('/api/public', publicFcmRoutes);
 // External order creation from customer webservers (standalone module)
 app.use('/api/external', externalOrdersRoutes);
+// Debug routes (for development/troubleshooting)
+app.use('/api/debug', debugRoutes);
 
 // Dev/mock endpoints removed from production routes. Archived copies
 // are available under `archive/dev_tools` if you need to run dev-only
