@@ -7,28 +7,67 @@ const { generateOTP, createOTP, verifyOTP, isOTPExpired, hasTooManyAttempts } = 
 const PreSignupFcmToken = require('../models/preSignupFcmToken');
 const Vendor = require('../models/vendor');
 
-// Helper: normalize order to Flutter shape for list
+// Helper: normalize order to mobile app requirements
 function mapOrderForList(order) {
   return {
-    orderId: order._id.toString(),
+    // Primary identifiers (mobile app expects 'id')
+    id: order._id.toString(),
+    orderId: order._id.toString(), // Keep for backward compatibility
+    
+    // Status mapping
     status: order.status === 'in_progress' ? 'started' : order.status,
-    fare: order.fare,
+    
+    // Amount fields (mobile app expects 'amount')
+    amount: order.fare,
+    fare: order.fare, // Keep for backward compatibility
+    
+    // Customer information (flatten from metadata for mobile app)
+    customerName: (order.metadata && order.metadata.customerName) || 
+                  (order.metadata && order.metadata.customerNameMasked) || 
+                  'Customer',
+    customerPhone: (order.metadata && order.metadata.customerPhone) || 
+                   (order.metadata && order.metadata.customerPhoneMasked) || 
+                   null,
+    
+    // Location data
     pickup: {
       lat: order.pickup.coordinates[1],
+      latitude: order.pickup.coordinates[1], // Alternative field
       lng: order.pickup.coordinates[0],
+      longitude: order.pickup.coordinates[0], // Alternative field
       address: order.pickup.address,
     },
+    pickupAddress: order.pickup.address, // Alternative field
+    
     drop: {
       lat: order.drop.coordinates[1],
-      lng: order.drop.coordinates[0],
+      latitude: order.drop.coordinates[1], // Alternative field
+      lng: order.drop.coordinates[0], 
+      longitude: order.drop.coordinates[0], // Alternative field
       address: order.drop.address,
     },
+    dropAddress: order.drop.address, // Alternative field
+    
+    // Items and service info
     items: order.items || [],
-    customerNameMasked: (order.metadata && order.metadata.customerNameMasked) || null,
-    customerPhoneMasked: (order.metadata && order.metadata.customerPhoneMasked) || null,
-    scheduledAt: order.scheduledAt ? order.scheduledAt.toISOString() : null,
+    
+    // Timestamps
     createdAt: order.createdAt ? order.createdAt.toISOString() : null,
     updatedAt: order.updatedAt ? order.updatedAt.toISOString() : null,
+    scheduledAt: order.scheduledAt ? order.scheduledAt.toISOString() : null,
+    acceptedAt: order.acceptedAt ? order.acceptedAt.toISOString() : null,
+    completedAt: order.completedAt ? order.completedAt.toISOString() : null,
+    
+    // Service-specific fields (for external orders)
+    workType: order.metadata && order.metadata.workType,
+    urgency: order.metadata && order.metadata.urgency,
+    
+    // Raw metadata for fallback
+    raw: {
+      paymentMethod: order.paymentMethod,
+      customerNotes: order.customerNotes,
+      metadata: order.metadata
+    }
   };
 }
 
@@ -71,10 +110,16 @@ async function getOrder(req, res) {
     const order = await ordersService.getOrderForVendor(vendorId, orderId);
     if (!order) return res.status(404).json({ ok: false, error: 'Order not found' });
 
-    return res.status(200).json({ ok: true, data: normalizePublicOrder(order.toPublicJSON()) });
+    // Format order for mobile app compatibility
+    const formattedOrder = mapOrderForList(order);
+    
+    // Return in mobile app expected format
+    return res.status(200).json({ 
+      order: formattedOrder  // Mobile app expects 'order' wrapper
+    });
   } catch (err) {
     error(buildBase({ requestId: rid, route: '/api/orders/:id', method: 'GET', vendorId, orderId }), 'Get order error', err.stack);
-    return res.status(500).json({ requestId: rid, message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
@@ -95,7 +140,7 @@ async function acceptOrder(req, res) {
       // If accepted by this vendor and previously accepted via the endpoint (acceptedAt set), treat as idempotent success
       if (existing.vendorId && existing.vendorId.toString() === vendorId.toString()) {
         if (existing.acceptedAt) {
-          return res.status(200).json({ ok: true, data: existing.toPublicJSON() });
+          return res.status(200).json({ order: mapOrderForList(existing) });
         }
         // Order marked accepted but missing acceptedAt timestamp — treat as invalid state
         return res.status(400).json({ ok: false, error: `Cannot accept order in ${existing.status} status` });
@@ -143,10 +188,10 @@ async function acceptOrder(req, res) {
       }
     }
 
-    return res.status(200).json({ ok: true, data: normalizePublicOrder(updated.toPublicJSON()) });
+    return res.status(200).json({ order: mapOrderForList(updated) });
   } catch (err) {
     error(buildBase({ requestId: rid, route: '/api/orders/:id/accept', method: 'POST', vendorId, orderId }), 'Accept order error', err.stack);
-    return res.status(500).json({ requestId: rid, message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
@@ -186,10 +231,10 @@ async function rejectOrder(req, res) {
       try { await notificationService.notifyCustomerOrderStatusUpdate(updated.customerId, updated, newStatus); } catch (e) {}
     }
 
-    return res.status(200).json({ ok: true, data: normalizePublicOrder(updated.toPublicJSON()) });
+    return res.status(200).json({ order: mapOrderForList(updated) });
   } catch (err) {
     error(buildBase({ requestId: rid, route: '/api/orders/:id/reject', method: 'POST', vendorId, orderId }), 'Reject order error', err.stack);
-    return res.status(500).json({ requestId: rid, message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
@@ -206,10 +251,10 @@ async function startOrder(req, res) {
 
     if (updated.customerId) { try { await notificationService.notifyCustomerOrderStatusUpdate(updated.customerId, updated, 'in_progress'); } catch (e) {} }
 
-    return res.status(200).json({ ok: true, data: normalizePublicOrder(updated.toPublicJSON()) });
+    return res.status(200).json({ order: mapOrderForList(updated) });
   } catch (err) {
     error(buildBase({ requestId: rid, route: '/api/orders/:id/start', method: 'POST', vendorId, orderId }), 'Start order error', err.stack);
-    return res.status(500).json({ requestId: rid, message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
@@ -226,10 +271,10 @@ async function completeOrder(req, res) {
 
     if (updated.customerId) { try { await notificationService.notifyCustomerOrderStatusUpdate(updated.customerId, updated, 'completed'); } catch (e) {} }
 
-    return res.status(200).json({ ok: true, data: normalizePublicOrder(updated.toPublicJSON()) });
+    return res.status(200).json({ order: mapOrderForList(updated) });
   } catch (err) {
     error(buildBase({ requestId: rid, route: '/api/orders/:id/complete', method: 'POST', vendorId, orderId }), 'Complete order error', err.stack);
-    return res.status(500).json({ requestId: rid, message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
@@ -258,7 +303,7 @@ async function cancelOrder(req, res) {
 
     if (updated.customerId) { try { await notificationService.notifyCustomerOrderStatusUpdate(updated.customerId, updated, 'cancelled'); } catch (e) {} }
 
-    return res.status(200).json({ ok: true, data: updated.toPublicJSON() });
+    return res.status(200).json({ order: mapOrderForList(updated) });
   } catch (err) {
     error(buildBase({ requestId: rid, route: '/api/orders/:id/cancel', method: 'POST', vendorId, orderId }), 'Cancel order error', err.stack);
     return res.status(500).json({ requestId: rid, message: 'Internal server error' });

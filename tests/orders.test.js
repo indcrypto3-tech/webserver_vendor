@@ -50,13 +50,14 @@ describe('Orders API', () => {
 
     const res = await request(app).post(`/api/orders/${order._id}/accept`).set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
-    expect(res.body.ok).toBe(true);
-    expect(res.body.data.status).toBe('accepted');
+    expect(res.body.order).toBeDefined();
+    expect(res.body.order.status).toBe('accepted');
+    expect(res.body.order.id).toBe(order._id.toString());
 
     // repeat accept should be idempotent
     const res2 = await request(app).post(`/api/orders/${order._id}/accept`).set('Authorization', `Bearer ${token}`);
     expect(res2.status).toBe(200);
-    expect(res2.body.ok).toBe(true);
+    expect(res2.body.order).toBeDefined();
   });
 
   test('POST /api/orders/:id/accept conflict when already accepted by other vendor', async () => {
@@ -91,7 +92,7 @@ describe('Orders API', () => {
 
     const res = await request(app).post(`/api/orders/${order._id}/reject`).set('Authorization', `Bearer ${token}`).send({ reason: 'Busy' });
     expect(res.status).toBe(200);
-    expect(res.body.data.status).toBe('rejected');
+    expect(res.body.order.status).toBe('rejected');
   });
 
   test('POST /api/orders/:id/start and complete transitions', async () => {
@@ -111,10 +112,10 @@ describe('Orders API', () => {
 
     const start = await request(app).post(`/api/orders/${order._id}/start`).set('Authorization', `Bearer ${token}`);
     expect(start.status).toBe(200);
-    expect(start.body.data.status).toBe('started');
+    expect(start.body.order.status).toBe('started');
 
     const complete = await request(app).post(`/api/orders/${order._id}/complete`).set('Authorization', `Bearer ${token}`);
     expect(complete.status).toBe(200);
-    expect(complete.body.data.status).toBe('completed');
+    expect(complete.body.order.status).toBe('completed');
   });
 });

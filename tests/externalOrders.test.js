@@ -12,23 +12,17 @@ const VendorPresence = require('../models/vendorPresence');
 describe('External Orders API', () => {
   const validOrderData = {
     customerId: 'customer123',
-    pickup: {
-      lat: 12.9716,
-      lng: 77.5946,
-      address: '123 Pickup Street, Bangalore'
+    customerName: 'John Doe',
+    customerPhone: '+1234567890',
+    customerAddress: '123 Service Street, Bangalore',
+    workType: 'electrician',
+    description: 'Fix electrical outlet in kitchen',
+    location: {
+      latitude: 12.9716,
+      longitude: 77.5946
     },
-    drop: {
-      lat: 12.9352,
-      lng: 77.6245,
-      address: '456 Drop Avenue, Bangalore'
-    },
-    items: [
-      { title: 'Pizza Margherita', qty: 2, price: 250 },
-      { title: 'Coca Cola', qty: 1, price: 50 }
-    ],
-    fare: 300,
-    paymentMethod: 'cod',
-    customerNotes: 'Please call before delivery'
+    estimatedPrice: 300,
+    urgency: 'normal'
   };
 
   describe('POST /api/external/orders', () => {
@@ -123,12 +117,15 @@ describe('External Orders API', () => {
         expect(createdOrder.customerId).toBe('customer123');
         expect(createdOrder.status).toBe('pending');
         expect(createdOrder.fare).toBe(300);
-        expect(createdOrder.items).toHaveLength(2);
+        expect(createdOrder.items).toHaveLength(1); // Service orders have single item
+        expect(createdOrder.items[0].title).toContain('electrician'); // Contains work type
+        expect(createdOrder.metadata.workType).toBe('electrician');
+        expect(createdOrder.metadata.customerName).toBe('John Doe');
       });
 
       it('should return 400 for invalid order data', async () => {
         const invalidData = { ...validOrderData };
-        delete invalidData.pickup; // Remove required field
+        delete invalidData.customerName; // Remove required field
 
         const response = await request(app)
           .post('/api/external/orders')
@@ -137,66 +134,58 @@ describe('External Orders API', () => {
 
         expect(response.status).toBe(400);
         expect(response.body.ok).toBe(false);
-        expect(response.body.error).toBe('Order validation failed');
-        expect(response.body.details).toContain('pickup location is required');
+        expect(response.body.error).toBe('Validation failed');
+        expect(response.body.details).toContain('customerName is required');
       });
 
-      it('should handle scheduled orders', async () => {
-        const scheduledData = {
+      it('should handle service orders with estimated price', async () => {
+        const serviceData = {
           ...validOrderData,
-          scheduledAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour from now
+          estimatedPrice: 500
         };
 
         const response = await request(app)
           .post('/api/external/orders')
           .set('x-customer-secret', 'test-customer-secret')
-          .send(scheduledData);
+          .send(serviceData);
 
         expect(response.status).toBe(201);
         
         const createdOrder = await Order.findById(response.body.data.orderId);
-        expect(createdOrder.scheduledAt).toBeTruthy();
+        expect(createdOrder.fare).toBe(500);
       });
 
-      it('should accept different payment methods', async () => {
-        const paymentMethods = ['cod', 'online', 'wallet'];
+      it('should create service orders with default payment method', async () => {
+        const response = await request(app)
+          .post('/api/external/orders')
+          .set('x-customer-secret', 'test-customer-secret')
+          .send(validOrderData);
+
+        expect(response.status).toBe(201);
         
-        for (const method of paymentMethods) {
-          const orderData = { ...validOrderData, paymentMethod: method };
-          
-          const response = await request(app)
-            .post('/api/external/orders')
-            .set('x-customer-secret', 'test-customer-secret')
-            .send(orderData);
-
-          expect(response.status).toBe(201);
-          
-          const createdOrder = await Order.findById(response.body.data.orderId);
-          expect(createdOrder.paymentMethod).toBe(method);
-        }
+        const createdOrder = await Order.findById(response.body.data.orderId);
+        expect(createdOrder.paymentMethod).toBe('cod'); // Default for service orders
+        expect(createdOrder.metadata.orderType).toBe('service');
       });
 
-      it('should handle metadata correctly', async () => {
-        const dataWithMetadata = {
+      it('should handle urgency and work type correctly', async () => {
+        const dataWithUrgency = {
           ...validOrderData,
-          metadata: { 
-            source: 'customer-app',
-            campaign: 'discount-20',
-            referral: 'FRIEND123'
-          }
+          urgency: 'urgent',
+          workType: 'plumber'
         };
 
         const response = await request(app)
           .post('/api/external/orders')
           .set('x-customer-secret', 'test-customer-secret')
-          .send(dataWithMetadata);
+          .send(dataWithUrgency);
 
         expect(response.status).toBe(201);
         
         const createdOrder = await Order.findById(response.body.data.orderId);
-        expect(createdOrder.metadata.source).toBe('customer-app');
-        expect(createdOrder.metadata.campaign).toBe('discount-20');
-        expect(createdOrder.metadata.referral).toBe('FRIEND123');
+        expect(createdOrder.metadata.urgency).toBe('urgent');
+        expect(createdOrder.metadata.workType).toBe('plumber');
+        expect(createdOrder.metadata.orderType).toBe('service');
       });
     });
 
@@ -243,18 +232,18 @@ describe('External Orders API', () => {
 
     describe('Error Handling', () => {
       it('should handle invalid coordinates gracefully', async () => {
-        const invalidCoords = {
+        const invalidCoordinates = {
           ...validOrderData,
-          pickup: { ...validOrderData.pickup, lat: 999 } // Invalid latitude
+          location: { ...validOrderData.location, latitude: 999 } // Invalid latitude
         };
 
         const response = await request(app)
           .post('/api/external/orders')
           .set('x-customer-secret', 'test-customer-secret')
-          .send(invalidCoords);
+          .send(invalidCoordinates);
 
         expect(response.status).toBe(400);
-        expect(response.body.error).toBe('Order validation failed');
+        expect(response.body.error).toBe('Validation failed');
       });
 
       it('should handle missing required fields', async () => {
@@ -271,8 +260,9 @@ describe('External Orders API', () => {
         expect(response.status).toBe(400);
         expect(response.body.details).toEqual(
           expect.arrayContaining([
-            expect.stringContaining('pickup location is required'),
-            expect.stringContaining('drop location is required')
+            expect.stringContaining('customerName is required'),
+            expect.stringContaining('workType is required'),
+            expect.stringContaining('location is required')
           ])
         );
       });
