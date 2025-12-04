@@ -18,7 +18,8 @@ const ordersFetchListRoutes = require('./routes/ordersFetchList');
 const earningsRoutes = require('./routes/earnings');
 const proxyRoutes = require('./routes/proxy');
 const publicFcmRoutes = require('./routes/publicFcm');
-// Work-types feature removed: routes and controller deleted
+const externalOrdersRoutes = require('./routes/externalOrders');
+// Work-types feature retired from the codebase
 
 // Initialize Express app
 const app = express();
@@ -65,7 +66,6 @@ app.use('/uploads', express.static(uploadsPath));
 app.use('/api/auth', authRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/vendors', presenceRoutes); // Presence routes under /api/vendors
-console.log('ℹ️  Work-types API removed from codebase');
 app.use('/api/orders', ordersFetchListRoutes); // Order fetchlist endpoints (must be BEFORE orderRoutes)
 app.use('/api/orders', orderRoutes); // Order management routes
 app.use('/api/earnings', earningsRoutes); // Earnings endpoints
@@ -74,6 +74,8 @@ app.use('/api/proxy', proxyRoutes); // Backend-to-backend proxy endpoints
 app.use('/api/vendor', vendorLocationRoutes);
 // Public pre-signup endpoints (no authentication)
 app.use('/api/public', publicFcmRoutes);
+// External order creation from customer webservers (standalone module)
+app.use('/api/external', externalOrdersRoutes);
 
 // Dev/mock endpoints removed from production routes. Archived copies
 // are available under `archive/dev_tools` if you need to run dev-only
@@ -103,7 +105,6 @@ app.get('/', (req, res) => {
         getMe: 'GET /api/vendors/me',
         updateMe: 'PATCH /api/vendors/me'
       },
-      // workTypes API removed
       health: 'GET /health',
     },
   });
@@ -123,14 +124,16 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Database connection (skip automatic connect during tests; tests manage their own in-memory DB)
-if (process.env.NODE_ENV !== 'test') {
+// Database connection
+// Only auto-connect when NODE_ENV is explicitly 'production' or 'development'.
+// This avoids attempting a network DB connection when tests `require('./server')`
+// before the test harness sets up an in-memory MongoDB instance.
+if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'development') {
   mongoose
     .connect(config.mongoUri)
     .then(() => {
       console.log('Connected to MongoDB');
       console.log(`Database: ${config.mongoUri}`);
-      // Work types removed; no seeding performed
 
       // Initialize Firebase Admin SDK (require lazily so tests can mock the module)
       if (config.enableSocketIO) {
@@ -147,7 +150,7 @@ if (process.env.NODE_ENV !== 'test') {
       process.exit(1);
     });
 } else {
-  console.log('Test environment detected — skipping automatic mongoose.connect.');
+  console.log('Test or unspecified environment — skipping automatic mongoose.connect.');
 }
 
 // Mongoose connection events

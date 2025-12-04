@@ -74,9 +74,48 @@ router.post('/fcm-token', limiter, async (req, res) => {
 
     const options = { upsert: true, new: true, setDefaultsOnInsert: true };
 
-    const doc = await PreSignupFcmToken.findOneAndUpdate(query, update, options).lean();
+    // Try upsert; some rare edge cases (unique index races) may return null
+    // or throw duplicate key errors. Handle those gracefully by falling
+    // back to finding or creating the document so we don't return 500.
+    try {
+      const doc = await PreSignupFcmToken.findOneAndUpdate(query, update, options).lean();
+      if (doc && doc._id) {
+        return res.status(201).json({ status: 'ok', id: doc._id });
+      }
 
-    return res.status(201).json({ status: 'ok', id: doc._id });
+      // Fallback: attempt to create a document. This may throw E11000
+      // if a concurrent insert happened; handle that below.
+      try {
+        const created = await PreSignupFcmToken.create({
+          phone,
+          fcmToken,
+          deviceType: deviceType || 'web',
+          deviceId: deviceId || null,
+          meta: meta || {},
+          ip,
+          userAgent,
+          createdAt: now,
+          updatedAt: now,
+          expiresAt,
+        });
+
+        return res.status(201).json({ status: 'ok', id: created._id });
+      } catch (e) {
+        // If duplicate key, try to locate the existing document and return its id
+        if (e && e.code === 11000) {
+          const existing = await PreSignupFcmToken.findOne({ fcmToken }).lean();
+          if (existing && existing._id) {
+            return res.status(201).json({ status: 'ok', id: existing._id });
+          }
+        }
+
+        // Re-throw to be handled by outer catch
+        throw e;
+      }
+    } catch (err) {
+      // Re-throw to be caught by the outer try/catch below
+      throw err;
+    }
   } catch (error) {
     console.error('Error in /api/public/fcm-token:', error);
     return res.status(500).json({ status: 'error', message: 'Server error' });

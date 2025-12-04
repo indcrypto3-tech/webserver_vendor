@@ -1,12 +1,13 @@
+// Ensure test environment variables and in-memory MongoDB are initialized
+process.env.NODE_ENV = 'test';
+process.env.SKIP_RATE_LIMIT = 'true';
+require('./setup');
+
 const request = require('supertest');
 const app = require('../server');
 const PreSignupFcmToken = require('../models/preSignupFcmToken');
 
 describe('POST /api/public/fcm-token', () => {
-  beforeAll(() => {
-    process.env.NODE_ENV = 'test';
-    process.env.SKIP_RATE_LIMIT = 'true';
-  });
 
   it('returns 400 when missing phone or fcmToken', async () => {
     const res = await request(app).post('/api/public/fcm-token').send({});

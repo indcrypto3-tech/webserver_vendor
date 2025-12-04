@@ -273,7 +273,7 @@ async function paymentRequest(req, res) {
   const rid = req.requestId;
   const vendorId = req.user && req.user._id;
   const { orderId } = req.params;
-  const { amount, currency = 'INR', autoConfirm = false } = req.body;
+  const { amount, currency = 'INR', autoConfirm = false, notes = '' } = req.body;
 
   info(buildBase({ requestId: rid, route: '/api/orders/:id/payment-request', method: 'POST', vendorId, orderId }), 'Payment request');
 
@@ -293,8 +293,8 @@ async function paymentRequest(req, res) {
       return res.status(400).json({ ok: false, error: 'invalid_amount', message: 'Amount must be a positive number' });
     }
 
-    // Create payment request using the final resolved amount (notes are not used per new workflow)
-    const paymentReq = createPaymentRequest({ amount: finalAmount, currency });
+    // Create payment request using the final resolved amount (include notes when provided)
+    const paymentReq = createPaymentRequest({ amount: finalAmount, currency, notes });
 
     // If autoConfirm is enabled (dev/test mode)
     if (autoConfirm) {

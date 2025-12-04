@@ -22,16 +22,16 @@ module.exports = {
   
   // Note: Development-only mock-order feature removed. Remove related env vars.
 
-  // Work types feature flag. Set to 'true' to enable `/api/work-types` endpoint.
-  // Default: false (disabled). To enable, set environment variable ENABLE_WORK_TYPES=true
-  enableWorkTypes: process.env.ENABLE_WORK_TYPES === 'true',
-  
+  // (work-types feature removed) feature flag retired
   // Socket.IO configuration
   enableSocketIO: process.env.ENABLE_SOCKET_IO === 'true',
   socketCorsOrigin: process.env.SOCKET_CORS_ORIGIN || '*',
 
   // Internal API key for backend-to-backend proxy (keep secret)
   internalApiKey: process.env.INTERNAL_API_KEY || 'dev-internal-key',
+  
+  // Customer webserver authentication for external order creation
+  customerServerSecret: process.env.CUSTOMER_SERVER_SECRET || 'dev-customer-secret',
   
   // Firebase Cloud Messaging configuration
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID || '',
