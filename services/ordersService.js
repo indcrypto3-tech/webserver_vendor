@@ -1,10 +1,29 @@
 const Order = require('../models/order');
 
 async function listOrdersForVendor(vendorId, { status, limit = 50, offset = 0 }) {
-  const query = { vendorId };
+  // Allow vendors to see:
+  // 1. Orders specifically assigned to them (vendorId matches)
+  // 2. Pending orders that are available for acceptance (vendorId is null and status is 'pending')
+  const baseQuery = {
+    $or: [
+      { vendorId }, // Orders assigned to this vendor
+      { vendorId: null, status: 'pending' } // Pending orders available for acceptance
+    ]
+  };
+  
   // Accept 'started' as alias for internal 'in_progress'
   if (status === 'started') status = 'in_progress';
-  if (status) query.status = status;
+  
+  let query = baseQuery;
+  if (status) {
+    if (status === 'pending') {
+      // For pending status, only show unassigned pending orders
+      query = { vendorId: null, status: 'pending' };
+    } else {
+      // For other statuses, only show orders assigned to this vendor
+      query = { vendorId, status };
+    }
+  }
 
   const [total, orders] = await Promise.all([
     Order.countDocuments(query),
@@ -19,7 +38,16 @@ async function listOrdersForVendor(vendorId, { status, limit = 50, offset = 0 })
 }
 
 async function getOrderForVendor(vendorId, orderId) {
-  const order = await Order.findOne({ _id: orderId, vendorId });
+  // Allow vendors to see:
+  // 1. Orders specifically assigned to them (vendorId matches)
+  // 2. Pending orders that are available for acceptance (vendorId is null and status is 'pending')
+  const order = await Order.findOne({ 
+    _id: orderId, 
+    $or: [
+      { vendorId }, // Orders assigned to this vendor
+      { vendorId: null, status: 'pending' } // Pending orders available for acceptance
+    ]
+  });
   return order;
 }
 
