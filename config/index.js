@@ -33,9 +33,6 @@ module.exports = {
   // Customer webserver authentication for external order creation
   customerServerSecret: process.env.CUSTOMER_SERVER_SECRET || 'dev-customer-secret',
   
-  // External vendor update authentication
-  externalVendorSecret: process.env.EXTERNAL_VENDOR_SECRET || 'dev-external-vendor-secret',
-  
   // Firebase Cloud Messaging configuration
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID || '',
   firebasePrivateKeyPath: process.env.FIREBASE_PRIVATE_KEY_PATH || '',
