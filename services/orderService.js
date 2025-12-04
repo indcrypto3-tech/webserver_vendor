@@ -265,6 +265,10 @@ async function createOrder(data) {
         // No online vendors: broadcast (keeps pending)
         const broadcastResult = await broadcastOrderToVendors(order);
         console.log(`📢 Order broadcast result:`, broadcastResult);
+        
+        // Store broadcast result in order metadata for external access
+        order.metadata = { ...order.metadata, broadcastResult };
+        await order.save();
       }
 
       // Reload order to get latest data
@@ -273,6 +277,11 @@ async function createOrder(data) {
       // Production behavior: Broadcast to all online vendors (order stays in 'pending')
       const broadcastResult = await broadcastOrderToVendors(order);
       console.log(`📢 Order broadcast result:`, broadcastResult);
+      
+      // Store broadcast result in order metadata for external access
+      order.metadata = { ...order.metadata, broadcastResult };
+      await order.save();
+      
       await order.populate('vendorId');
     }
   } else if (data.vendorId) {

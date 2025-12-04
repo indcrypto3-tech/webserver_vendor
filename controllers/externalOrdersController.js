@@ -138,15 +138,23 @@ async function createOrderFromCustomer(req, res) {
           originalServiceRequest: req.body
         },
         // Force broadcast to online vendors (no specific vendor assignment)
-        autoAssignVendor: false
+        autoAssignVendor: true
       };
 
       // Create order using existing service
       const order = await orderService.createOrder(orderData);
 
-      // Broadcast to online vendors (order remains in 'pending' status)
-      // Note: broadcastOrderToVendors is called automatically in createOrder for broadcast mode
-      const broadcastResult = { success: true, notifiedCount: 0, failedCount: 0 };
+      // Get broadcast result from order metadata (stored by orderService.createOrder)
+      const storedBroadcast = order.metadata?.broadcastResult;
+      const broadcastResult = storedBroadcast ? {
+        success: storedBroadcast.success,
+        notifiedCount: storedBroadcast.notifiedCount || 0,
+        failedCount: storedBroadcast.failedCount || 0
+      } : {
+        success: false,
+        notifiedCount: 0,
+        failedCount: 0
+      };
 
       info({
         route: req.route?.path || req.path,
