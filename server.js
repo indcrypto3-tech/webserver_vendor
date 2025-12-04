@@ -77,6 +77,9 @@ app.use('/api/vendor', vendorLocationRoutes);
 app.use('/api/public', publicFcmRoutes);
 // External order creation from customer webservers (standalone module)
 app.use('/api/external', externalOrdersRoutes);
+// External vendor updates from partner systems
+const externalVendorRoutes = require('./routes/external');
+app.use('/api/external', externalVendorRoutes);
 // Debug routes (for development/troubleshooting)
 app.use('/api/debug', debugRoutes);
 
