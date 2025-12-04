@@ -54,4 +54,43 @@ router.get('/vendors-status', async (req, res) => {
   }
 });
 
+/**
+ * Debug endpoint to check order details
+ * GET /api/debug/order/:orderId
+ */
+router.get('/order/:orderId', async (req, res) => {
+  try {
+    const Order = require('../models/order');
+    const { orderId } = req.params;
+    
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    res.json({
+      order: {
+        _id: order._id,
+        status: order.status,
+        vendorId: order.vendorId,
+        customerId: order.customerId,
+        pickup: order.pickup,
+        drop: order.drop,
+        items: order.items,
+        fare: order.fare,
+        paymentMethod: order.paymentMethod,
+        metadata: order.metadata,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Debug order error:', error);
+    res.status(500).json({
+      error: 'Failed to get order details',
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;
