@@ -1,6 +1,8 @@
 const express = require('express');
 const Joi = require('joi');
 const Vendor = require('../models/vendor');
+const { triggerOrderStatusWebhook } = require('../middleware/orderStatusWebhook');
+const { testCustomerWebhookConnection } = require('../services/customerWebhookService');
 const { info, error: logError, warn } = require('../utils/logger');
 const router = express.Router();
 
@@ -166,37 +168,68 @@ router.post('/vendor-update', validateVendorSecret, async (req, res) => {
     let orderUpdated = false;
     
     // Handle order update if assignedOrderId provided
+    let webhookResult = null;
     if (assignedOrderId) {
       try {
         // Try to require Order model - it may not exist
         const Order = require('../models/order');
         
-        // Try to find and update order by orderId or _id
-        let orderUpdateResult = await Order.findOneAndUpdate(
-          { $or: [{ _id: assignedOrderId }, { orderId: assignedOrderId }] },
-          { 
-            $set: {
-              vendorId: vendorResult._id,
-              ...(validatedPayload.status && { 
-                status: validatedPayload.status === 'accepted' ? 'assigned' : 
+        // First get the current order to track status change
+        const currentOrder = await Order.findOne(
+          { $or: [{ _id: assignedOrderId }, { orderId: assignedOrderId }] }
+        );
+        
+        if (currentOrder) {
+          const previousStatus = currentOrder.status;
+          
+          // Prepare status mapping from external vendor statuses to internal statuses
+          let newStatus = null;
+          if (validatedPayload.status) {
+            newStatus = validatedPayload.status === 'accepted' ? 'assigned' : 
                        validatedPayload.status === 'enroute' ? 'in_progress' :
                        validatedPayload.status === 'completed' ? 'completed' :
                        validatedPayload.status === 'cancelled' ? 'cancelled' :
                        validatedPayload.status === 'rejected' ? 'pending' :
-                       validatedPayload.status
-              })
+                       validatedPayload.status;
+          }
+          
+          // Update the order
+          let orderUpdateResult = await Order.findOneAndUpdate(
+            { $or: [{ _id: assignedOrderId }, { orderId: assignedOrderId }] },
+            { 
+              $set: {
+                vendorId: vendorResult._id,
+                ...(newStatus && { status: newStatus })
+              }
+            },
+            { new: true }
+          );
+          
+          if (orderUpdateResult) {
+            orderUpdated = true;
+            info({ 
+              vendorId,
+              orderId: assignedOrderId,
+              previousStatus,
+              newStatus: orderUpdateResult.status 
+            }, 'Order updated successfully');
+
+            // Send customer webhook if status changed
+            if (newStatus && previousStatus !== newStatus) {
+              try {
+                webhookResult = await triggerOrderStatusWebhook(orderUpdateResult, previousStatus);
+                info({ 
+                  orderId: assignedOrderId,
+                  webhookSuccess: webhookResult.success 
+                }, 'Customer webhook triggered for order status change');
+              } catch (webhookError) {
+                warn({ 
+                  orderId: assignedOrderId,
+                  error: webhookError.message 
+                }, 'Failed to send customer webhook for order status change');
+              }
             }
-          },
-          { new: true }
-        );
-        
-        if (orderUpdateResult) {
-          orderUpdated = true;
-          info({ 
-            vendorId,
-            orderId: assignedOrderId,
-            newStatus: orderUpdateResult.status 
-          }, 'Order updated successfully');
+          }
         }
       } catch (orderError) {
         // Order model might not exist or order not found - continue without error
@@ -209,7 +242,8 @@ router.post('/vendor-update', validateVendorSecret, async (req, res) => {
       success: true,
       vendorId,
       upserted: wasUpserted,
-      orderUpdated
+      orderUpdated,
+      webhookSent: webhookResult ? webhookResult.success : false
     });
 
     info({ 
@@ -227,6 +261,94 @@ router.post('/vendor-update', validateVendorSecret, async (req, res) => {
     }, 'Database error during vendor update');
     
     res.status(500).json({ error: 'internal server error' });
+  }
+});
+
+/**
+ * POST /api/external/webhook-test
+ * 
+ * Test webhook connection to customer server.
+ * Sends a test webhook to verify connectivity and authentication.
+ * 
+ * Example:
+ * curl -X POST https://webserver-vendor.vercel.app/api/external/webhook-test \
+ *   -H "Content-Type: application/json" \
+ *   -H "x-vendor-secret: ${EXTERNAL_VENDOR_SECRET}" \
+ *   -d '{"webhookUrl": "https://your-customer-server.com/api/vendor/order-updates"}'
+ */
+router.post('/webhook-test', validateVendorSecret, async (req, res) => {
+  try {
+    info({ 
+      route: req.path, 
+      method: req.method, 
+      testUrl: req.body?.webhookUrl,
+      ip: req.ip 
+    }, 'Webhook test request received');
+
+    // Validate request body
+    const testSchema = Joi.object({
+      webhookUrl: Joi.string().uri().optional().messages({
+        'string.uri': 'webhookUrl must be a valid URL'
+      })
+    });
+
+    const { error: validationError, value: validatedPayload } = testSchema.validate(req.body);
+    
+    if (validationError) {
+      warn({ 
+        route: req.path, 
+        method: req.method, 
+        ip: req.ip,
+        validationErrors: validationError.details 
+      }, 'Validation failed for webhook test');
+      
+      return res.status(400).json({
+        error: 'validation error',
+        details: validationError.details.map(detail => detail.message)
+      });
+    }
+
+    // Test webhook connection
+    const testResult = await testCustomerWebhookConnection(validatedPayload.webhookUrl);
+
+    if (testResult.success) {
+      info({ 
+        testUrl: validatedPayload.webhookUrl || 'default',
+        responseStatus: testResult.response?.status 
+      }, 'Webhook test successful');
+
+      res.status(200).json({
+        success: true,
+        message: 'Webhook connection test successful',
+        response: testResult.response
+      });
+    } else {
+      warn({ 
+        testUrl: validatedPayload.webhookUrl || 'default',
+        error: testResult.error,
+        details: testResult.details
+      }, 'Webhook test failed');
+
+      res.status(400).json({
+        success: false,
+        error: 'Webhook connection test failed',
+        details: testResult.error,
+        response: testResult.details
+      });
+    }
+
+  } catch (testError) {
+    logError({ 
+      route: req.path,
+      method: req.method,
+      error: testError.message,
+      stack: testError.stack 
+    }, 'Error during webhook test');
+    
+    res.status(500).json({ 
+      success: false,
+      error: 'internal server error' 
+    });
   }
 });
 

@@ -2,6 +2,7 @@ const Order = require('../models/order');
 const Vendor = require('../models/vendor');
 const VendorPresence = require('../models/vendorPresence');
 const { notifyVendorNewOrder } = require('./notificationService');
+const { triggerOrderStatusWebhook } = require('../middleware/orderStatusWebhook');
 const socketService = require('./socketService');
 // Socket.IO disabled for serverless - using FCM for real-time notifications
 // const { emitNewOrderToVendor } = require('./socketService');
@@ -327,15 +328,18 @@ async function getOrderById(orderId) {
  * Update order status
  * @param {String} orderId - Order ID
  * @param {String} status - New status
- * @returns {Promise<Object>} - Updated order document
+ * @param {Object} options - Additional options { triggeredBy: 'vendor'|'customer'|'admin' }
+ * @returns {Promise<Object>} - Updated order document with webhook result
  */
-async function updateOrderStatus(orderId, status) {
+async function updateOrderStatus(orderId, status, options = {}) {
   const order = await Order.findById(orderId);
   if (!order) {
     const error = new Error('Order not found');
     error.statusCode = 404;
     throw error;
   }
+
+  const previousStatus = order.status;
 
   order.status = status;
 
@@ -354,9 +358,23 @@ async function updateOrderStatus(orderId, status) {
 
   await order.save();
 
-  // TODO: In production, trigger status change notifications
+  // Send customer webhook notification for status change
+  let webhookResult = null;
+  if (previousStatus !== status) {
+    try {
+      webhookResult = await triggerOrderStatusWebhook(order, previousStatus);
+      console.log(`📡 Customer webhook triggered for order ${orderId}: ${webhookResult.success ? 'success' : 'failed'}`);
+    } catch (webhookError) {
+      console.warn(`❌ Failed to trigger customer webhook for order ${orderId}:`, webhookError.message);
+      webhookResult = { success: false, error: webhookError.message };
+    }
+  }
 
-  return order;
+  // Return order with webhook result metadata
+  return {
+    ...order.toObject(),
+    webhookResult
+  };
 }
 
 module.exports = {

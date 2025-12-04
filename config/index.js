@@ -33,6 +33,9 @@ module.exports = {
   // Customer webserver authentication for external order creation
   customerServerSecret: process.env.CUSTOMER_SERVER_SECRET || 'dev-customer-secret',
   
+  // Customer server webhook URL for order status updates
+  customerWebhookUrl: process.env.CUSTOMER_WEBHOOK_URL || null,
+  
   // External vendor update authentication
   externalVendorSecret: process.env.EXTERNAL_VENDOR_SECRET || 'dev-external-vendor-secret',
   
