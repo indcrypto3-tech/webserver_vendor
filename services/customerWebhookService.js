@@ -1,4 +1,11 @@
-const axios = require('axios');
+let axios;
+try {
+  axios = require('axios');
+} catch (e) {
+  console.warn('axios not available - webhook functionality will be disabled');
+  axios = null;
+}
+
 const config = require('../config');
 const { info, warn, error } = require('../utils/logger');
 
@@ -17,6 +24,12 @@ const { info, warn, error } = require('../utils/logger');
  * @returns {Promise<Object>} - { success: boolean, response?: Object, error?: string }
  */
 async function notifyCustomerOrderUpdate(order, previousStatus = null, options = {}) {
+  // Check if axios is available
+  if (!axios) {
+    console.warn('axios not available - skipping customer webhook');
+    return { success: false, error: 'axios not available' };
+  }
+
   const { 
     retries = 3, 
     timeout = 10000, // 10 seconds
@@ -252,6 +265,11 @@ async function notifyCustomerOrderUpdatesBatch(orderUpdates, options = {}) {
  * @returns {Promise<Object>} - { success: boolean, response?: Object, error?: string }
  */
 async function testCustomerWebhookConnection(testUrl = null) {
+  // Check if axios is available
+  if (!axios) {
+    return { success: false, error: 'axios not available' };
+  }
+
   const webhookUrl = testUrl || config.customerWebhookUrl;
   
   if (!webhookUrl) {
